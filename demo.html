@@ -1,0 +1,805 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CtrlScript (CSUI) — Full Demo</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #0d0d1a; color: #e0e0e0; font-family: system-ui, -apple-system, sans-serif; }
+  .demo-nav { display: flex; flex-wrap: wrap; gap: 8px; padding: 20px 32px; background: #111122; border-bottom: 1px solid rgba(255,255,255,0.07); position: sticky; top: 0; z-index: 100; }
+  .demo-nav a { color: #93c5fd; font-size: 13px; text-decoration: none; padding: 4px 10px; border-radius: 6px; background: rgba(59,130,246,0.12); transition: background 150ms; }
+  .demo-nav a:hover { background: rgba(59,130,246,0.25); }
+  .demo-section { padding: 48px 32px; border-bottom: 1px solid rgba(255,255,255,0.05); max-width: 900px; margin: 0 auto; }
+  .demo-section h2 { font-size: 22px; font-weight: 700; color: #fff; margin-bottom: 6px; }
+  .demo-section .sub { font-size: 13px; color: rgba(255,255,255,0.4); margin-bottom: 28px; font-family: monospace; }
+  .row { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-bottom: 16px; }
+  .col { display: flex; flex-direction: column; gap: 10px; }
+  label.demo-label { font-size: 12px; color: rgba(255,255,255,0.45); margin-bottom: 4px; display: block; }
+  .game-canvas { position: relative; width: 100%; height: 200px; background: #0a0a1a; border-radius: 10px; overflow: hidden; border: 1px solid rgba(255,255,255,0.08); }
+</style>
+</head>
+<body>
+
+<nav class="demo-nav">
+  <a href="#elements">Elements</a>
+  <a href="#chaining">Chaining</a>
+  <a href="#shapes">Shapes</a>
+  <a href="#layout">Layout</a>
+  <a href="#animation">Animation</a>
+  <a href="#lifecycle">Lifecycle</a>
+  <a href="#ui">UI Components</a>
+  <a href="#glass">Glassmorphism</a>
+  <a href="#game">Game</a>
+  <a href="#router">Router</a>
+  <a href="#device">Device</a>
+  <a href="#storage">Storage</a>
+  <a href="#palette">Palette</a>
+  <a href="#plugin">Plugin</a>
+  <a href="#devtools">DevTools</a>
+</nav>
+
+<script type="module">
+import {
+  Box, App, Text, Label, Button, Input, Image,
+  Heading, Paragraph, TextArea, Link, Span,
+  Section, Code, CodeBlock, HR,
+  Rectangle, Square, Circle, Ellipse, Line,
+  List, ListItem, Select, Checkbox, Radio,
+  Canvas, Video,
+  DropdownMenu, Modal, toast, Tabs, Slider, ProgressBar, Toggle,
+  Accordion, Drawer, Chip, Card,
+  group, loop, onKey, collides, scene, go,
+  after, every, save, load, ask,
+  sound, particles,
+  router, device,
+  palette,
+  csui, checkOverlap,
+  ctrlscript,
+} from './csui.js';
+
+csui.debug(true);
+
+// ── helper to create demo sections ──────────────────────
+function section(id, title, subtitle) {
+  const sec = document.createElement('div');
+  sec.className = 'demo-section';
+  sec.id = id;
+  sec.innerHTML = `<h2>${title}</h2><div class="sub">${subtitle}</div>`;
+  document.body.appendChild(sec);
+  return sec;
+}
+function row(parent) {
+  const d = document.createElement('div');
+  d.className = 'row';
+  parent.appendChild(d);
+  return d;
+}
+
+// ────────────────────────────────────────────────────────
+// §1  CORE ELEMENTS
+// ────────────────────────────────────────────────────────
+const s1 = section('elements', '1 — Core Elements', 'Box · Text · Button · Input · Heading · Paragraph · Link · Code');
+
+const box1 = new Box(null, { bg: '#1e1e2e', br: 10, p: 16, name: 'demo-box' });
+box1.el.style.display = 'inline-flex';
+box1.el.style.flexDirection = 'column';
+box1.el.style.gap = '10px';
+s1.appendChild(box1.el);
+
+new Heading(3, box1, { text: 'Hello from Heading', c: '#93c5fd' });
+new Paragraph(box1, { text: 'This is a Paragraph element.' });
+new Text(box1, { text: 'Inline Text span', c: '#fde68a', fs: 13 });
+new Label(box1, { text: 'Label (alias of Text)', c: '#86efac', fs: 13 });
+const btn1 = new Button(box1, { text: 'Click Me', bg: '#3b82f6', c: '#fff', br: 6, p: '8px 18px', border: 'none', cursor: 'pointer' });
+btn1.click(() => toast('Button clicked!', { type: 'success' }));
+const inp1 = new Input(box1, { placeholder: 'Type something…', p: '8px 12px', br: 6, bg: '#2d2d3e', c: '#fff', border: '1px solid rgba(255,255,255,0.1)', fs: 14 });
+inp1.onEnter(v => toast(`You typed: "${v}"`, { type: 'info' }));
+new Link(box1, { text: 'Visit Anthropic', href: 'https://anthropic.com', c: '#818cf8', target: '_blank' });
+new Code(box1, { text: 'const x = new Box("app")', bg: '#111', c: '#7dd3fc', br: 4, p: '4px 8px', fs: 12 });
+
+// ────────────────────────────────────────────────────────
+// §2  CHAINING API
+// ────────────────────────────────────────────────────────
+const s2 = section('chaining', '2 — Chaining API', 'box.bg().p().w().br().bs().c().fs()');
+
+const chainDemo = document.createElement('div');
+chainDemo.className = 'row';
+s2.appendChild(chainDemo);
+
+const chainBox = new Box(null);
+chainBox.bg('#1d4ed8').p(20).w(180).h(60).br(10).bs('0 4px 20px rgba(29,78,216,0.4)');
+chainBox.el.style.display = 'flex';
+chainBox.el.style.alignItems = 'center';
+chainBox.el.style.justifyContent = 'center';
+new Text(chainBox, { text: 'Chained Box', c: '#fff', fw: '700' });
+chainDemo.appendChild(chainBox.el);
+
+const chainBox2 = new Box(null);
+chainBox2.bgRGB(16, 185, 129).p(20).w(180).h(60).br(10).o(0.9);
+chainBox2.el.style.display = 'flex';
+chainBox2.el.style.alignItems = 'center';
+chainBox2.el.style.justifyContent = 'center';
+new Text(chainBox2, { text: 'bgRGB chain', c: '#fff', fw: '700' });
+chainDemo.appendChild(chainBox2.el);
+
+const chainBox3 = new Box(null);
+chainBox3.bgHSL(280, 80, 55).p(20).w(180).h(60).br(10);
+chainBox3.el.style.display = 'flex';
+chainBox3.el.style.alignItems = 'center';
+chainBox3.el.style.justifyContent = 'center';
+new Text(chainBox3, { text: 'bgHSL chain', c: '#fff', fw: '700' });
+chainDemo.appendChild(chainBox3.el);
+
+// ────────────────────────────────────────────────────────
+// §3  SHAPES
+// ────────────────────────────────────────────────────────
+const s3 = section('shapes', '3 — Shapes', 'Rectangle · Square · Circle · Ellipse · Line');
+const shapeRow = row(s3);
+
+const rect = new Rectangle(null, { w: 120, h: 60, bg: '#7c3aed' });
+shapeRow.appendChild(rect.el);
+
+const sq = new Square(null, { size: 60, bg: '#0891b2' });
+shapeRow.appendChild(sq.el);
+
+const circ = new Circle(null, { size: 60, bg: '#059669' });
+shapeRow.appendChild(circ.el);
+
+const ell = new Ellipse(null, { w: 120, h: 60, bg: '#dc2626' });
+shapeRow.appendChild(ell.el);
+
+const lineEl = new Line(null, { w: 120, h: 3, bg: '#f59e0b' });
+shapeRow.appendChild(lineEl.el);
+
+// ────────────────────────────────────────────────────────
+// §4  LAYOUT
+// ────────────────────────────────────────────────────────
+const s4 = section('layout', '4 — Layout', '.row() · .col() · group() · .move()');
+
+const rowBox = new Box(null, { bg: '#1e1e2e', br: 10, p: 16 });
+rowBox.row(
+  (() => { const b = new Box(null); b.bg('#3b82f6').p(12).br(6); new Text(b, { text: 'Item A', c: '#fff', fs: 13 }); return b; })(),
+  (() => { const b = new Box(null); b.bg('#7c3aed').p(12).br(6); new Text(b, { text: 'Item B', c: '#fff', fs: 13 }); return b; })(),
+  (() => { const b = new Box(null); b.bg('#059669').p(12).br(6); new Text(b, { text: 'Item C', c: '#fff', fs: 13 }); return b; })(),
+);
+s4.appendChild(rowBox.el);
+
+const colBox = new Box(null, { bg: '#1e1e2e', br: 10, p: 16, mt: 12 });
+colBox.col(
+  (() => { const b = new Box(null); b.bg('#1d4ed8').p(10).br(6); new Text(b, { text: 'Col A', c: '#fff', fs: 13 }); return b; })(),
+  (() => { const b = new Box(null); b.bg('#831843').p(10).br(6); new Text(b, { text: 'Col B', c: '#fff', fs: 13 }); return b; })(),
+);
+s4.appendChild(colBox.el);
+
+// ────────────────────────────────────────────────────────
+// §5  ANIMATION
+// ────────────────────────────────────────────────────────
+const s5 = section('animation', '5 — Animation', '.animate() · .fadeIn() · .slideLeft() · .slideRight()');
+
+const animRow = row(s5);
+
+function animBtn(label, color, fn) {
+  const b = new Button(null, { text: label, bg: color, c: '#fff', br: 6, p: '8px 14px', border: 'none', cursor: 'pointer', fs: 13 });
+  b.click(fn);
+  animRow.appendChild(b.el);
+  return b;
+}
+
+const animBox = new Box(null, { bg: '#7c3aed', w: 80, h: 80, br: 10 });
+animBox.el.style.margin = '20px auto';
+animBox.el.style.display = 'block';
+s5.appendChild(animBox.el);
+
+animBtn('fadeIn',    '#3b82f6', () => animBox.fadeIn(500));
+animBtn('fadeOut',   '#6b7280', () => animBox.fadeOut(500));
+animBtn('slideLeft', '#059669', () => animBox.slideLeft(60, 400));
+animBtn('slideRight','#dc2626', () => animBox.slideRight(60, 400));
+animBtn('scale+rotate', '#f59e0b', () => animBox.animate({ scale: 1.4, rotate: 45, backgroundColor: '#f59e0b' }, 400));
+animBtn('reset',     '#4b5563', () => animBox.animate({ scale: 1, rotate: 0, opacity: 1, backgroundColor: '#7c3aed' }, 300));
+
+// ────────────────────────────────────────────────────────
+// §6  LIFECYCLE HOOKS
+// ────────────────────────────────────────────────────────
+const s6 = section('lifecycle', '6 — Lifecycle Hooks', '.onMount(fn) · .onDestroy(fn) · .destroy()');
+
+const lcLog = document.createElement('pre');
+lcLog.style.cssText = 'background:#111;color:#86efac;font-size:12px;padding:12px;border-radius:8px;min-height:60px;font-family:monospace;line-height:1.6';
+lcLog.textContent = 'Lifecycle events will appear here…\n';
+s6.appendChild(lcLog);
+
+const lcRow = row(s6);
+
+const lcBox = new Box(null, { bg: '#3b82f6', p: 14, br: 8 });
+new Text(lcBox, { text: 'Lifecycle Box', c: '#fff' });
+lcBox.onMount(() => { lcLog.textContent += '✅ onMount fired\n'; });
+lcBox.onDestroy(() => { lcLog.textContent += '🔴 onDestroy fired\n'; });
+
+let lcMounted = false;
+
+const addBtn = new Button(null, { text: 'Mount', bg: '#059669', c: '#fff', br: 6, p: '8px 16px', border: 'none', cursor: 'pointer' });
+addBtn.click(() => {
+  if (!lcMounted) { s6.appendChild(lcBox.el); lcBox._triggerMount(); lcMounted = true; }
+});
+
+const removeBtn = new Button(null, { text: 'Destroy', bg: '#dc2626', c: '#fff', br: 6, p: '8px 16px', border: 'none', cursor: 'pointer' });
+removeBtn.click(() => {
+  if (lcMounted) { lcBox.destroy(); lcMounted = false; }
+});
+
+lcRow.appendChild(addBtn.el);
+lcRow.appendChild(removeBtn.el);
+
+// ────────────────────────────────────────────────────────
+// §7  UI COMPONENTS
+// ────────────────────────────────────────────────────────
+const s7 = section('ui', '7 — UI Components', 'DropdownMenu · Modal · toast · Tabs · Slider · ProgressBar · Toggle · Accordion · Drawer · Chip · Card · Tooltip · Badge · ContextMenu');
+
+// ── DropdownMenu
+s7.appendChild(Object.assign(document.createElement('div'), { className: 'demo-label', textContent: 'DropdownMenu' }));
+const dropRow = row(s7);
+const dd = new DropdownMenu(null, {
+  label: '⚙ Options',
+  buttonBg: '#1d4ed8', buttonHoverBg: '#2563eb', buttonColor: '#fff',
+  menuBg: '#1e1e2e', itemColor: '#e0e0e0', itemHoverBg: '#2d2d3e',
+  radius: '8px',
+  items: [
+    { label: '👤 Profile', onClick: () => toast('Profile clicked', { type: 'info' }) },
+    { label: '⚙ Settings', onClick: () => toast('Settings clicked', { type: 'info' }) },
+    { divider: true },
+    { label: '🚪 Logout', onClick: () => toast('Logged out', { type: 'warning' }) },
+  ],
+});
+dropRow.appendChild(dd.el);
+
+const dd2 = new DropdownMenu(null, {
+  label: '🎨 Theme',
+  buttonBg: '#7c3aed', buttonHoverBg: '#6d28d9',
+  items: [
+    { label: '🌑 Dark', onClick: () => toast('Dark theme', { type: 'info' }) },
+    { label: '☀️ Light', onClick: () => toast('Light theme', { type: 'info' }) },
+  ],
+});
+dropRow.appendChild(dd2.el);
+
+// ── Modal
+s7.appendChild(Object.assign(document.createElement('div'), { className: 'demo-label', textContent: 'Modal', style: 'margin-top:20px' }));
+const modalRow = row(s7);
+const modal = new Modal(null, {
+  title: '🚀 Confirm Action',
+  content: 'Are you sure you want to proceed? This cannot be undone.',
+  dialogBg: '#1a1a2e', titleColor: '#fff', contentColor: 'rgba(255,255,255,0.75)',
+  radius: '14px', onClose: () => toast('Modal closed', { type: 'info', position: 'tl' }),
+});
+const openModal = new Button(null, { text: 'Open Modal', bg: '#7c3aed', c: '#fff', br: 8, p: '9px 18px', border: 'none', cursor: 'pointer' });
+openModal.click(() => modal.open());
+modalRow.appendChild(openModal.el);
+
+// ── Toast
+s7.appendChild(Object.assign(document.createElement('div'), { className: 'demo-label', textContent: 'Toast', style: 'margin-top:20px' }));
+const toastRow = row(s7);
+[
+  ['✅ Success', 'success', 'br'],
+  ['❌ Error',   'error',   'bl'],
+  ['ℹ️ Info',    'info',    'tr'],
+  ['⚠️ Warning', 'warning', 'tl'],
+].forEach(([label, type, position]) => {
+  const b = new Button(null, { text: label, bg: '#1e1e2e', c: '#e0e0e0', br: 6, p: '8px 14px', border: '1px solid rgba(255,255,255,0.1)', cursor: 'pointer', fs: 13 });
+  b.click(() => toast(label, { type, position, duration: 2000 }));
+  toastRow.appendChild(b.el);
+});
+
+// ── Tabs
+s7.appendChild(Object.assign(document.createElement('div'), { className: 'demo-label', textContent: 'Tabs', style: 'margin-top:20px' }));
+const tabContent1 = new Box(null, { bg: '#1e1e2e', p: 16, br: 8 });
+new Paragraph(tabContent1, { text: 'This is the Home tab content. Welcome to CSUI!', c: 'rgba(255,255,255,0.75)', fs: 14 });
+const tabContent2 = new Box(null, { bg: '#1e1e2e', p: 16, br: 8 });
+new Paragraph(tabContent2, { text: 'Profile settings and user information goes here.', c: 'rgba(255,255,255,0.75)', fs: 14 });
+const tabContent3 = new Box(null, { bg: '#1e1e2e', p: 16, br: 8 });
+new Paragraph(tabContent3, { text: 'System settings, preferences, and configuration.', c: 'rgba(255,255,255,0.75)', fs: 14 });
+
+const tabs = new Tabs(null, {
+  activeColor: '#fff', inactiveColor: 'rgba(255,255,255,0.4)',
+  indicatorColor: '#3b82f6', fontSize: '14px',
+  tabs: [
+    { label: '🏠 Home',    content: tabContent1 },
+    { label: '👤 Profile', content: tabContent2 },
+    { label: '⚙ Settings', content: tabContent3 },
+  ],
+});
+s7.appendChild(tabs.el);
+
+// ── Slider
+s7.appendChild(Object.assign(document.createElement('div'), { className: 'demo-label', textContent: 'Slider', style: 'margin-top:20px' }));
+const sliderBox = new Box(null, { bg: '#1e1e2e', p: 20, br: 10 });
+sliderBox.el.style.maxWidth = '400px';
+const sliderVal = new Text(sliderBox, { text: 'Value: 50', c: '#7dd3fc', fs: 13, fw: '600' });
+const slider = new Slider(sliderBox, {
+  min: 0, max: 100, value: 50,
+  fillColor: '#3b82f6', trackColor: 'rgba(255,255,255,0.1)',
+  thumbColor: '#fff', height: 6, thumbSize: 18,
+});
+slider.onChange(v => { sliderVal.text = `Value: ${Math.round(v)}`; });
+s7.appendChild(sliderBox.el);
+
+// ── ProgressBar
+s7.appendChild(Object.assign(document.createElement('div'), { className: 'demo-label', textContent: 'ProgressBar', style: 'margin-top:20px' }));
+const pbBox = new Box(null, { bg: '#1e1e2e', p: 20, br: 10 });
+pbBox.el.style.maxWidth = '400px';
+pbBox.el.style.display = 'flex';
+pbBox.el.style.flexDirection = 'column';
+pbBox.el.style.gap = '10px';
+const pb1 = new ProgressBar(pbBox, { value: 68, fillColor: '#3b82f6', height: 8 });
+const pb2 = new ProgressBar(pbBox, { value: 42, fillColor: '#059669', height: 8 });
+const pb3 = new ProgressBar(pbBox, { value: 85, fillColor: '#f59e0b', height: 8, striped: true });
+s7.appendChild(pbBox.el);
+
+let pbVal = 0;
+const pbTimer = every(40, () => {
+  pbVal = (pbVal + 1) % 101;
+  pb1.set(pbVal);
+  pb2.set(100 - pbVal);
+});
+
+// ── Toggle
+s7.appendChild(Object.assign(document.createElement('div'), { className: 'demo-label', textContent: 'Toggle', style: 'margin-top:20px' }));
+const toggleRow = row(s7);
+const tg1 = new Toggle(null, { checked: true, activeColor: '#3b82f6' });
+tg1.onChange(v => toast(v ? 'Toggled ON' : 'Toggled OFF', { type: v ? 'success' : 'info', duration: 1200 }));
+toggleRow.appendChild(tg1.el);
+
+const tg2 = new Toggle(null, { checked: false, activeColor: '#059669', size: 1.3 });
+toggleRow.appendChild(tg2.el);
+
+const tg3 = new Toggle(null, { checked: true, activeColor: '#f59e0b', thumbColor: '#111', size: 0.8 });
+toggleRow.appendChild(tg3.el);
+
+// ── Accordion
+s7.appendChild(Object.assign(document.createElement('div'), { className: 'demo-label', textContent: 'Accordion', style: 'margin-top:20px' }));
+const acc = new Accordion(null, {
+  headerBg: '#1e1e2e', headerHoverBg: '#2d2d3e', bodyBg: '#16162a',
+  radius: '8px', multi: false,
+  items: [
+    { title: '🚀 Getting Started',  content: 'Import csui.js and start building. No build tools needed.', open: true },
+    { title: '🎨 Customization',    content: 'Every component accepts style props for full visual control.' },
+    { title: '🔌 Plugin System',    content: 'Register custom components via csui.use({ name, install }).' },
+  ],
+});
+s7.appendChild(acc.el);
+
+// ── Drawer
+s7.appendChild(Object.assign(document.createElement('div'), { className: 'demo-label', textContent: 'Drawer', style: 'margin-top:20px' }));
+const drawerRow = row(s7);
+
+const drawerContent = new Box(null, { bg: '#1a1a2e', p: 24 });
+drawerContent.el.style.height = '100%';
+new Heading(4, drawerContent, { text: '📋 Sidebar', c: '#fff' });
+new Paragraph(drawerContent, { text: 'This is a slide-in drawer component.', c: 'rgba(255,255,255,0.6)', fs: 13, mt: 10 });
+
+const drawer = new Drawer(null, { side: 'left', size: '260px', bg: '#1a1a2e', content: drawerContent });
+
+const openDrawer = new Button(null, { text: '← Open Drawer', bg: '#1d4ed8', c: '#fff', br: 8, p: '9px 18px', border: 'none', cursor: 'pointer' });
+openDrawer.click(() => drawer.open());
+drawerRow.appendChild(openDrawer.el);
+
+const drawerR = new Drawer(null, { side: 'right', size: '260px', bg: '#111827',
+  content: (() => { const b = new Box(null, { p: 24 }); new Heading(4, b, { text: '⚙ Settings', c: '#fff' }); return b; })()
+});
+const openDrawerR = new Button(null, { text: 'Open Drawer →', bg: '#7c3aed', c: '#fff', br: 8, p: '9px 18px', border: 'none', cursor: 'pointer' });
+openDrawerR.click(() => drawerR.open());
+drawerRow.appendChild(openDrawerR.el);
+
+// ── Chip
+s7.appendChild(Object.assign(document.createElement('div'), { className: 'demo-label', textContent: 'Chip', style: 'margin-top:20px' }));
+const chipRow = row(s7);
+const chipColors = [
+  ['TypeScript', 'rgba(59,130,246,0.2)', '#93c5fd', 'rgba(59,130,246,0.3)'],
+  ['React',      'rgba(20,184,166,0.2)',  '#5eead4', 'rgba(20,184,166,0.3)'],
+  ['CSUI',       'rgba(139,92,246,0.2)', '#c4b5fd', 'rgba(139,92,246,0.3)'],
+  ['Remove me',  'rgba(239,68,68,0.15)', '#fca5a5', 'rgba(239,68,68,0.3)'],
+];
+chipColors.forEach(([text, bg, color, border]) => {
+  const chip = new Chip(null, {
+    text, bg, color, border,
+    removable: text === 'Remove me',
+    onRemove: () => toast('Chip removed!', { type: 'warning' }),
+  });
+  chipRow.appendChild(chip.el);
+});
+
+// ── Card
+s7.appendChild(Object.assign(document.createElement('div'), { className: 'demo-label', textContent: 'Card', style: 'margin-top:20px' }));
+const cardRow = row(s7);
+
+const card1 = new Card(null, {
+  title: '🚀 Feature Card',
+  content: 'A fully customizable card component with header, body, and footer slots.',
+  footer: '📅 Updated today',
+  bg: '#1e1e2e', radius: '12px',
+  shadow: '0 4px 24px rgba(0,0,0,0.3)',
+  titleColor: '#7dd3fc',
+});
+card1.el.style.maxWidth = '260px';
+cardRow.appendChild(card1.el);
+
+const card2 = new Card(null, {
+  title: '🎨 Custom Card',
+  content: 'Change bg, radius, shadow, border, padding — all via props.',
+  bg: '#14213d', radius: '8px',
+  border: '1px solid rgba(99,179,237,0.3)',
+  shadow: '0 0 20px rgba(99,179,237,0.15)',
+  titleColor: '#63b3ed',
+});
+card2.el.style.maxWidth = '260px';
+cardRow.appendChild(card2.el);
+
+// ── Tooltip
+s7.appendChild(Object.assign(document.createElement('div'), { className: 'demo-label', textContent: 'Tooltip (.tooltip method)', style: 'margin-top:20px' }));
+const tipRow = row(s7);
+['top','bottom','left','right'].forEach(pos => {
+  const b = new Button(null, { text: `Tooltip ${pos}`, bg: '#1e1e2e', c: '#e0e0e0', br: 6, p: '8px 14px', border: '1px solid rgba(255,255,255,0.1)', cursor: 'pointer', fs: 13 });
+  b.tooltip(`Tooltip on ${pos}`, { pos, bg: '#0f172a', color: '#7dd3fc', fontSize: '12px' });
+  tipRow.appendChild(b.el);
+});
+
+// ── Badge
+s7.appendChild(Object.assign(document.createElement('div'), { className: 'demo-label', textContent: 'Badge (.badge method)', style: 'margin-top:20px' }));
+const badgeRow = row(s7);
+const badgeBtn = new Button(null, { text: '🔔 Notifications', bg: '#1e1e2e', c: '#fff', br: 8, p: '10px 18px', border: '1px solid rgba(255,255,255,0.1)', cursor: 'pointer' });
+badgeBtn.badge(5, { bg: '#ef4444' });
+badgeRow.appendChild(badgeBtn.el);
+
+let badgeCount = 5;
+const incBtn = new Button(null, { text: '+', bg: '#059669', c: '#fff', br: 6, p: '10px 16px', border: 'none', cursor: 'pointer', fw: '700' });
+incBtn.click(() => { badgeCount++; badgeBtn.badge(badgeCount); });
+badgeRow.appendChild(incBtn.el);
+
+const clrBtn = new Button(null, { text: 'Clear', bg: '#4b5563', c: '#fff', br: 6, p: '10px 16px', border: 'none', cursor: 'pointer' });
+clrBtn.click(() => { badgeCount = 0; badgeBtn.badge(0); });
+badgeRow.appendChild(clrBtn.el);
+
+// ── ContextMenu
+s7.appendChild(Object.assign(document.createElement('div'), { className: 'demo-label', textContent: 'ContextMenu (.contextMenu — right-click)', style: 'margin-top:20px' }));
+const ctxBox = new Box(null, { bg: '#1e1e2e', p: 20, br: 10 });
+new Text(ctxBox, { text: 'Right-click me for a context menu', c: 'rgba(255,255,255,0.6)', fs: 13 });
+ctxBox.contextMenu([
+  { label: '📋 Copy', onClick: () => toast('Copied!', { type: 'success' }) },
+  { label: '✏️ Edit',  onClick: () => toast('Editing…', { type: 'info'    }) },
+  { divider: true },
+  { label: '🗑 Delete', onClick: () => toast('Deleted!', { type: 'error'   }) },
+], { bg: '#1e1e2e', itemHoverBg: '#2d2d3e' });
+s7.appendChild(ctxBox.el);
+
+// ────────────────────────────────────────────────────────
+// §8  GLASSMORPHISM
+// ────────────────────────────────────────────────────────
+const s8 = section('glass', '8 — Glassmorphism', '.glass() — lazy (opacity) and professional (backdrop-filter blur)');
+
+const glassBg = document.createElement('div');
+Object.assign(glassBg.style, {
+  backgroundImage: 'linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f64f59 100%)',
+  borderRadius: '12px', padding: '40px 24px',
+  display: 'flex', gap: '20px', flexWrap: 'wrap',
+});
+s8.appendChild(glassBg);
+
+const lazyCard = new Box(null, { p: 24, br: 12, w: 200 });
+lazyCard.glass({ pro: false, opacity: 0.15, borderColor: 'rgba(255,255,255,0.25)' });
+new Heading(4, lazyCard, { text: 'Lazy Glass', c: '#fff' });
+new Paragraph(lazyCard, { text: 'Semi-transparent bg, no blur.', c: 'rgba(255,255,255,0.8)', fs: 13, mt: 8 });
+glassBg.appendChild(lazyCard.el);
+
+const proCard = new Box(null, { p: 24, br: 12, w: 200 });
+proCard.glass({ pro: true, blur: 16, opacity: 0.15, saturation: 2, borderColor: 'rgba(255,255,255,0.25)', shadowColor: 'rgba(0,0,0,0.2)' });
+new Heading(4, proCard, { text: 'Pro Glass', c: '#fff' });
+new Paragraph(proCard, { text: 'Backdrop blur + saturation. Real glassmorphism.', c: 'rgba(255,255,255,0.85)', fs: 13, mt: 8 });
+glassBg.appendChild(proCard.el);
+
+const customCard = new Box(null, { p: 24, br: 12, w: 200 });
+customCard.glass({ pro: true, blur: 8, opacity: 0.08, saturation: 1.5, borderColor: 'rgba(255,100,100,0.4)', shadowColor: 'rgba(246,79,89,0.3)' });
+new Heading(4, customCard, { text: 'Custom Tint', c: '#fff' });
+new Paragraph(customCard, { text: 'Custom blur, saturation, border & shadow.', c: 'rgba(255,255,255,0.85)', fs: 13, mt: 8 });
+glassBg.appendChild(customCard.el);
+
+// ────────────────────────────────────────────────────────
+// §9  GAME SYSTEM
+// ────────────────────────────────────────────────────────
+const s9 = section('game', '9 — Game System', 'loop(dt) · onKey() · collides() · scene() / go() · camera · particles');
+
+const gameArea = document.createElement('div');
+gameArea.className = 'game-canvas';
+gameArea.id = 'game-area';
+s9.appendChild(gameArea);
+
+const gameInfo = document.createElement('div');
+gameInfo.style.cssText = 'font-size:12px;color:rgba(255,255,255,0.4);margin-top:8px;font-family:monospace';
+gameInfo.textContent = 'Arrow keys / WASD to move the blue box. Green = enemy.';
+s9.appendChild(gameInfo);
+
+const playerEl = document.createElement('div');
+Object.assign(playerEl.style, { position: 'absolute', width: '32px', height: '32px', background: '#3b82f6', borderRadius: '6px', left: '20px', top: '84px', transition: 'background 100ms' });
+const enemyEl = document.createElement('div');
+Object.assign(enemyEl.style, { position: 'absolute', width: '32px', height: '32px', background: '#22c55e', borderRadius: '50%', right: '20px', top: '84px' });
+gameArea.appendChild(playerEl);
+gameArea.appendChild(enemyEl);
+
+let px = 20, py = 84, vx = 0, vy = 0;
+const SPEED = 2.5;
+onKey('arrowleft',  () => { vx = -SPEED; });
+onKey('arrowright', () => { vx =  SPEED; });
+onKey('arrowup',    () => { vy = -SPEED; });
+onKey('arrowdown',  () => { vy =  SPEED; });
+onKey('a', () => { vx = -SPEED; });
+onKey('d', () => { vx =  SPEED; });
+onKey('w', () => { vy = -SPEED; });
+onKey('s', () => { vy =  SPEED; });
+onKey('arrowleft',  () => { vx = 0; }, { up: true });
+onKey('arrowright', () => { vx = 0; }, { up: true });
+onKey('arrowup',    () => { vy = 0; }, { up: true });
+onKey('arrowdown',  () => { vy = 0; }, { up: true });
+onKey('a', () => { vx = 0; }, { up: true });
+onKey('d', () => { vx = 0; }, { up: true });
+onKey('w', () => { vy = 0; }, { up: true });
+onKey('s', () => { vy = 0; }, { up: true });
+
+// Enemy movement
+let ex = gameArea.offsetWidth - 52, ey = 84, edx = -1.2, edy = 0.8;
+let collisionCount = 0;
+
+loop(dt => {
+  const areaW = gameArea.offsetWidth - 32, areaH = gameArea.offsetHeight - 32;
+  px = Math.max(0, Math.min(areaW, px + vx));
+  py = Math.max(0, Math.min(areaH, py + vy));
+  playerEl.style.left = `${px}px`;
+  playerEl.style.top  = `${py}px`;
+
+  ex += edx; ey += edy;
+  if (ex <= 0 || ex >= areaW) edx *= -1;
+  if (ey <= 0 || ey >= areaH) edy *= -1;
+  enemyEl.style.left = `${ex}px`;
+  enemyEl.style.top  = `${ey}px`;
+
+  const pr = playerEl.getBoundingClientRect(), er = enemyEl.getBoundingClientRect();
+  const hit = !(pr.right < er.left || pr.left > er.right || pr.bottom < er.top || pr.top > er.bottom);
+  playerEl.style.background = hit ? '#ef4444' : '#3b82f6';
+  if (hit) {
+    collisionCount++;
+    gameInfo.textContent = `Collisions: ${collisionCount} | Arrow keys / WASD to move.`;
+  }
+});
+
+// ── scene system demo
+const s9b = section('router', '10 — Router + scene() / go()', 'URL-based router.define() / router.go() · scene() / go() preserved');
+
+const sceneDisplay = document.createElement('div');
+Object.assign(sceneDisplay.style, { background: '#1e1e2e', borderRadius: '10px', padding: '20px', minHeight: '80px', marginBottom: '14px', color: '#7dd3fc', fontFamily: 'monospace', fontSize: '14px' });
+sceneDisplay.textContent = 'Current path: ' + location.pathname;
+s9b.appendChild(sceneDisplay);
+
+const routerRow = row(s9b);
+['/home', '/about', '/settings'].forEach(path => {
+  const b = new Button(null, { text: path, bg: '#1d4ed8', c: '#fff', br: 6, p: '8px 14px', border: 'none', cursor: 'pointer', fs: 13 });
+  b.click(() => {
+    router.go(path);
+    sceneDisplay.textContent = 'Navigated to: ' + router.current;
+    toast(`router.go("${path}")`, { type: 'info', duration: 1500 });
+  });
+  routerRow.appendChild(b.el);
+});
+
+const backBtn = new Button(null, { text: '← Back', bg: '#374151', c: '#fff', br: 6, p: '8px 14px', border: 'none', cursor: 'pointer', fs: 13 });
+backBtn.click(() => { router.back(); after(50, () => { sceneDisplay.textContent = 'After back: ' + router.current; }); });
+routerRow.appendChild(backBtn.el);
+
+// ────────────────────────────────────────────────────────
+// §11  DEVICE APIs
+// ────────────────────────────────────────────────────────
+const s11 = section('device', '11 — Device APIs', 'device.location · device.vibrate · device.tilt · device.clipboard · device.notify');
+
+const devRow = row(s11);
+const devLog = document.createElement('pre');
+devLog.style.cssText = 'background:#111;color:#86efac;font-size:12px;padding:12px;border-radius:8px;margin-top:12px;font-family:monospace;line-height:1.6;min-height:48px';
+devLog.textContent = 'Device API results appear here…';
+s11.appendChild(devLog);
+
+function devBtn(label, color, fn) {
+  const b = new Button(null, { text: label, bg: color, c: '#fff', br: 6, p: '8px 14px', border: 'none', cursor: 'pointer', fs: 13 });
+  b.click(fn);
+  devRow.appendChild(b.el);
+}
+
+devBtn('📍 Location', '#059669', async () => {
+  try { const r = await device.location(); devLog.textContent = `lat: ${r.lat.toFixed(4)}, lng: ${r.lng.toFixed(4)}, accuracy: ${r.accuracy}m`; }
+  catch(e) { devLog.textContent = 'Location: ' + e.message; }
+});
+devBtn('📳 Vibrate', '#7c3aed', () => { device.vibrate([100, 50, 100]); devLog.textContent = 'Vibrated [100,50,100]ms'; });
+devBtn('📋 Copy', '#1d4ed8', async () => {
+  await device.clipboard.copy('Hello from CSUI!');
+  devLog.textContent = 'Copied "Hello from CSUI!" to clipboard';
+  toast('Copied!', { type: 'success' });
+});
+devBtn('📋 Paste', '#0891b2', async () => {
+  try { const t = await device.clipboard.paste(); devLog.textContent = 'Pasted: ' + t; }
+  catch(e) { devLog.textContent = 'Paste: ' + e.message; }
+});
+devBtn('🔔 Notify', '#f59e0b', async () => {
+  await device.notify('CSUI', 'Notification from CtrlScript!');
+  devLog.textContent = 'Notification sent (check your OS)';
+});
+
+// ────────────────────────────────────────────────────────
+// §12  STORAGE + TIMERS
+// ────────────────────────────────────────────────────────
+const s12 = section('storage', '12 — Storage + Timers', 'save() · load() · after() · every()');
+const storBox = new Box(null, { bg: '#1e1e2e', p: 20, br: 10 });
+storBox.el.style.display = 'inline-flex';
+storBox.el.style.flexDirection = 'column';
+storBox.el.style.gap = '10px';
+s12.appendChild(storBox.el);
+
+const storInput = new Input(storBox, { placeholder: 'Enter value to save…', p: '8px 12px', br: 6, bg: '#2d2d3e', c: '#fff', border: '1px solid rgba(255,255,255,0.1)', fs: 14, w: 260 });
+const storInfo  = new Text(storBox, { text: `Stored: "${load('demo_val', 'nothing yet')}"`, c: '#7dd3fc', fs: 13 });
+const storRow2  = new Box(storBox);
+storRow2.row();
+
+const saveBtn = new Button(storRow2, { text: 'Save', bg: '#059669', c: '#fff', br: 6, p: '8px 16px', border: 'none', cursor: 'pointer' });
+saveBtn.click(() => { save('demo_val', storInput.get()); storInfo.text = `Stored: "${load('demo_val', '')}"` ; toast('Saved!', { type: 'success', duration: 1200 }); });
+
+const loadBtn = new Button(storRow2, { text: 'Load', bg: '#1d4ed8', c: '#fff', br: 6, p: '8px 16px', border: 'none', cursor: 'pointer' });
+loadBtn.click(() => { storInput.set(load('demo_val', '')); toast('Loaded!', { type: 'info', duration: 1200 }); });
+
+// Timer demo
+const timerText = new Text(storBox, { text: 'Timer: 0s', c: '#fde68a', fs: 13, fw: '600' });
+let timerSecs = 0;
+const tick = every(1000, () => { timerSecs++; timerText.text = `Timer: ${timerSecs}s`; });
+
+// ────────────────────────────────────────────────────────
+// §13  SOUND + PARTICLES
+// ────────────────────────────────────────────────────────
+const s13 = section('sounds', '13 — Particles', 'particles.emit()');
+const particleBtn = new Button(null, { text: '✨ Burst Particles', bg: '#7c3aed', c: '#fff', br: 8, p: '12px 24px', border: 'none', cursor: 'pointer', fs: 14, fw: '600' });
+particleBtn.click(() => {
+  const r = particleBtn.el.getBoundingClientRect();
+  particles.emit({ x: r.left + r.width/2, y: r.top + r.height/2, count: 24, color: '#a78bfa', size: 7, duration: 700, spread: 80 });
+  particles.emit({ x: r.left + r.width/2, y: r.top + r.height/2, count: 12, color: '#fde68a', size: 4, duration: 500, spread: 50 });
+});
+s13.appendChild(particleBtn.el);
+
+// ────────────────────────────────────────────────────────
+// §14  COLOR PALETTE GENERATOR
+// ────────────────────────────────────────────────────────
+const s14 = section('palette', '14 — Color Palette Generator', 'palette("#3b82f6") — Figma-style. Check your DevTools console!');
+
+const palRow = row(s14);
+const palInput = document.createElement('input');
+palInput.type = 'color';
+palInput.value = '#3b82f6';
+Object.assign(palInput.style, { width: '48px', height: '38px', border: 'none', borderRadius: '8px', cursor: 'pointer', background: 'none', padding: '0' });
+palRow.appendChild(palInput);
+
+const palNameInput = document.createElement('input');
+palNameInput.placeholder = 'Palette name (e.g. brand)';
+palNameInput.value = 'primary';
+Object.assign(palNameInput.style, { background: '#1e1e2e', color: '#fff', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', padding: '8px 12px', fontSize: '14px', width: '180px' });
+palRow.appendChild(palNameInput);
+
+const genBtn = new Button(null, { text: '🎨 Generate Palette', bg: '#7c3aed', c: '#fff', br: 8, p: '9px 18px', border: 'none', cursor: 'pointer', fw: '600', fs: 14 });
+genBtn.click(() => {
+  const result = palette(palInput.value, { name: palNameInput.value || 'color' });
+  if (!result) return;
+  // Render swatches inline
+  swatchRow.innerHTML = '';
+  Object.entries(result).forEach(([shade, hex]) => {
+    const lum = parseInt(hex.slice(1,3),16)*0.299 + parseInt(hex.slice(3,5),16)*0.587 + parseInt(hex.slice(5,7),16)*0.114;
+    const fg = lum > 140 ? '#000' : '#fff';
+    const sw = document.createElement('div');
+    Object.assign(sw.style, { width: '60px', textAlign: 'center', cursor: 'pointer' });
+    const color = document.createElement('div');
+    Object.assign(color.style, { background: hex, height: '48px', borderRadius: '6px', marginBottom: '4px', transition: 'transform 150ms' });
+    color.addEventListener('mouseenter', () => { color.style.transform = 'scale(1.05)'; });
+    color.addEventListener('mouseleave', () => { color.style.transform = 'scale(1)'; });
+    color.addEventListener('click', () => { device.clipboard.copy(hex).then(() => toast(hex, { type: 'success', duration: 1000 })); });
+    const lbl = document.createElement('div');
+    lbl.textContent = shade;
+    lbl.style.cssText = `font-size:11px;color:rgba(255,255,255,0.5);font-family:monospace`;
+    sw.appendChild(color);
+    sw.appendChild(lbl);
+    swatchRow.appendChild(sw);
+  });
+  toast('Palette logged to console!', { type: 'success' });
+});
+
+palRow.appendChild(genBtn.el);
+
+const swatchRow = document.createElement('div');
+swatchRow.style.cssText = 'display:flex;flex-wrap:wrap;gap:8px;margin-top:16px';
+s14.appendChild(swatchRow);
+
+// Auto-generate on load
+after(100, () => genBtn.el.click());
+
+// ────────────────────────────────────────────────────────
+// §15  PLUGIN SYSTEM
+// ────────────────────────────────────────────────────────
+const s15 = section('plugin', '15 — Plugin System', 'csui.use({ name, install({ BaseElement, register, addProto }) })');
+
+// Define a Spinner plugin inline
+const SpinnerPlugin = {
+  name: 'spinner',
+  install({ BaseElement, register }) {
+    // Inject keyframe once
+    if (!document.getElementById('_csuiSpinKF')) {
+      const st = document.createElement('style');
+      st.id = '_csuiSpinKF';
+      st.textContent = '@keyframes _csuiSpin{to{transform:rotate(360deg)}}';
+      document.head.appendChild(st);
+    }
+    class Spinner extends BaseElement {
+      constructor(containerRef = null, props = {}) {
+        const { color = '#3b82f6', size = 32, thickness = 3, trackColor = 'rgba(255,255,255,0.1)', ...rest } = props;
+        super(containerRef);
+        this.el = document.createElement('div');
+        Object.assign(this.el.style, {
+          width: `${size}px`, height: `${size}px`, borderRadius: '50%',
+          border: `${thickness}px solid ${trackColor}`,
+          borderTopColor: color,
+          animation: '_csuiSpin 0.75s linear infinite',
+          display: 'inline-block', flexShrink: '0',
+        });
+        this._attachToContainer();
+        if (Object.keys(rest).length) this.props = rest;
+      }
+    }
+    register('Spinner', Spinner);
+  }
+};
+
+csui.use(SpinnerPlugin);
+
+const pluginRow = row(s15);
+
+const { Spinner } = ctrlscript;
+[
+  { color: '#3b82f6', size: 24 },
+  { color: '#22c55e', size: 32, thickness: 4 },
+  { color: '#f59e0b', size: 48, thickness: 5, trackColor: 'rgba(245,158,11,0.15)' },
+  { color: '#ec4899', size: 20, thickness: 2 },
+].forEach(opts => {
+  const sp = new Spinner(null, opts);
+  pluginRow.appendChild(sp.el);
+});
+
+const pluginDesc = document.createElement('div');
+pluginDesc.style.cssText = 'font-size:13px;color:rgba(255,255,255,0.45);margin-top:14px;font-family:monospace;line-height:1.6';
+pluginDesc.innerHTML = `
+<span style="color:#7dd3fc">csui.use(SpinnerPlugin)</span> — registered "Spinner" class via plugin.<br>
+<span style="color:#86efac">register('Spinner', Spinner)</span> → adds to ctrlscript namespace.<br>
+<span style="color:#fde68a">addProto(BaseElement, 'method', fn)</span> → extends existing classes.
+`.trim();
+s15.appendChild(pluginDesc);
+
+// ────────────────────────────────────────────────────────
+// §16  DEV TOOLS
+// ────────────────────────────────────────────────────────
+const s16 = section('devtools', '16 — Dev Tools', 'csui.debug() · csui.strict() · .highlight() · checkOverlap()');
+
+const devtoolRow = row(s16);
+const hlBox = new Box(null, { bg: '#1e1e2e', p: 20, br: 8 });
+new Text(hlBox, { text: 'Highlight me', c: '#fff', fs: 14 });
+devtoolRow.appendChild(hlBox.el);
+
+const hlBtn = new Button(null, { text: 'Highlight', bg: '#1d4ed8', c: '#fff', br: 6, p: '8px 14px', border: 'none', cursor: 'pointer' });
+hlBtn.click(() => hlBox.highlight('#f59e0b'));
+devtoolRow.appendChild(hlBtn.el);
+
+const hlOffBtn = new Button(null, { text: 'Remove', bg: '#374151', c: '#fff', br: 6, p: '8px 14px', border: 'none', cursor: 'pointer' });
+hlOffBtn.click(() => { hlBox.el.style.outline = ''; });
+devtoolRow.appendChild(hlOffBtn.el);
+
+const errBtn = new Button(null, { text: 'Show Error Screen', bg: '#dc2626', c: '#fff', br: 6, p: '8px 14px', border: 'none', cursor: 'pointer' });
+errBtn.click(() => csui.showError('This is a test error from csui.showError()'));
+devtoolRow.appendChild(errBtn.el);
+
+</script>
+</body>
+</html>
