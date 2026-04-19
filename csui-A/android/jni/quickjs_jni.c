@@ -56,7 +56,7 @@ static CsuaCtx *_get(jlong handle) {
 // Attach the calling thread to the JVM (safe to call repeatedly)
 static JNIEnv *_env(CsuaCtx *c) {
     JNIEnv *env = NULL;
-    (*c->jvm)->AttachCurrentThread(c->jvm, (void **)&env, NULL);
+    (*c->jvm)->AttachCurrentThread(c->jvm, &env, NULL);
     return env;
 }
 
@@ -388,7 +388,6 @@ Java_com_ctrlscript_csua_QuickJS_callFunction(JNIEnv *env, jclass cls,
 
     jobject ret = NULL;
     if (!JS_IsException(result) && !JS_IsUndefined(result)) {
-        ret = java_to_js(c, env, NULL); // convert result back
         const char *str = JS_ToCString(c->ctx, result);
         if (str) { ret = (*env)->NewStringUTF(env, str); JS_FreeCString(c->ctx, str); }
     }
