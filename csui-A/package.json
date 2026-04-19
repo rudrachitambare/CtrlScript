@@ -1,0 +1,22 @@
+{
+  "name": "csua",
+  "version": "1.0.0",
+  "description": "CtrlScript Android Runtime — native Android apps in JS, no WebView",
+  "bin": {
+    "csua": "./cli/index.js"
+  },
+  "main": "csua.js",
+  "scripts": {
+    "setup":   "node cli/index.js setup",
+    "create":  "node cli/index.js create",
+    "run":     "node cli/index.js run",
+    "build":   "node cli/index.js build",
+    "install": "node cli/index.js install",
+    "logs":    "node cli/index.js logs"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": ["android", "native", "javascript", "no-webview", "ctrlscript"],
+  "license": "MIT"
+}

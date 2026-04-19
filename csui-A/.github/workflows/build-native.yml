@@ -1,0 +1,56 @@
+name: Build Native Libraries
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up NDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install NDK
+        run: |
+          sdkmanager "ndk;26.1.10909125"
+          echo "ANDROID_NDK=$ANDROID_SDK_ROOT/ndk/26.1.10909125" >> $GITHUB_ENV
+
+      - name: Download QuickJS source
+        run: |
+          git clone --depth 1 https://github.com/bellard/quickjs.git \
+            csui-A/android/jni/quickjs
+
+      - name: Build libquickjs.so for all ABIs
+        run: |
+          for abi in arm64-v8a armeabi-v7a x86_64 x86; do
+            echo "--- Building $abi ---"
+            cmake \
+              -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK/build/cmake/android.toolchain.cmake \
+              -DANDROID_ABI=$abi \
+              -DANDROID_PLATFORM=android-26 \
+              -DCMAKE_BUILD_TYPE=Release \
+              -B build/$abi \
+              csui-A/android/jni
+
+            cmake --build build/$abi --config Release
+
+            mkdir -p csui-A/template/app/src/main/jniLibs/$abi
+            cp build/$abi/libquickjs.so \
+               csui-A/template/app/src/main/jniLibs/$abi/libquickjs.so
+
+            echo "  Done: $(du -sh csui-A/template/app/src/main/jniLibs/$abi/libquickjs.so)"
+          done
+
+      - name: Commit pre-built .so files
+        run: |
+          git config user.name  "GitHub Actions"
+          git config user.email "actions@github.com"
+          git add csui-A/template/app/src/main/jniLibs/
+          git diff --cached --quiet && echo "Nothing changed." || \
+            git commit -m "ci: pre-built libquickjs.so [$(date -u +%Y-%m-%d)]"
+          git push

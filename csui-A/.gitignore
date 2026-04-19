@@ -1,0 +1,43 @@
+# ── Progress / notes ──
+progress.md
+notes.md
+*.local.md
+
+# ── Node ──
+node_modules/
+package-lock.json
+
+# ── CLI config (tokens, SDK paths) ──
+.csua/
+
+# ── Android build outputs ──
+template/build/
+template/.gradle/
+template/local.properties
+template/app/build/
+*.apk
+*.aab
+*.dex
+
+# ── Release keystore — NEVER commit ──
+*.keystore
+*.jks
+keystore.properties
+
+# ── SDK download cache ──
+sdk-tools/
+android-sdk/
+cmdline-tools/
+
+# ── OS ──
+.DS_Store
+Thumbs.db
+
+# ── Logs ──
+*.log
+
+# ── Env ──
+.env
+.env.*
+
+# NOTE: jniLibs/ is intentionally committed — pre-built .so files ship with the project
