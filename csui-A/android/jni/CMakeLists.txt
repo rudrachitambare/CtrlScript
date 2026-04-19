@@ -3,12 +3,20 @@ project(quickjs)
 
 set(QJS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/quickjs)
 
-# Grab all QuickJS .c files, then strip out CLI/test binaries
-file(GLOB QJS_ALL "${QJS_DIR}/*.c")
-list(FILTER QJS_ALL EXCLUDE REGEX ".*(qjs|qjsc|run-test262|repl|unicode_gen)\.c$")
+# Explicit whitelist — only the library source files, no CLI tools
+set(QJS_LIB_FILES quickjs.c libregexp.c libunicode.c cutils.c)
+
+# dtoa.c exists in newer QuickJS versions — add if present
+foreach(f dtoa.c libbf.c)
+    if(EXISTS "${QJS_DIR}/${f}")
+        list(APPEND QJS_LIB_FILES ${f})
+    endif()
+endforeach()
+
+list(TRANSFORM QJS_LIB_FILES PREPEND "${QJS_DIR}/")
 
 add_library(quickjs SHARED
-    ${QJS_ALL}
+    ${QJS_LIB_FILES}
     quickjs_jni.c
 )
 
