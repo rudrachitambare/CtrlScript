@@ -1,4 +1,8 @@
-# CSUI (CtrlScript)
+⚠️ WIP — not ready, experimental, structure may change
+this project was published early, proper docs coming later
+---
+
+# CtrlScript (CSUI)
 
 **A lightweight, no-build UI system for browser-based apps and game interfaces.**
 Built for simplicity, performance, and full control — without heavy frameworks.
