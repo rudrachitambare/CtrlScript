@@ -167,6 +167,7 @@ function run() {
 
 function build() {
     _requireProject();
+    _checkNativeLibs();
     _copyAssets();
     console.log('\n  Building release APK...\n');
     execSync('./gradlew assembleRelease --stacktrace', { cwd: _templateDir(), stdio: 'inherit' });
@@ -181,6 +182,7 @@ function build() {
 
 function install() {
     _requireProject();
+    _checkNativeLibs();
     _copyAssets();
     execSync(_gradlew() + ' assembleDebug', { cwd: _templateDir(), stdio: 'inherit' });
     const apk = join(_templateDir(), 'app', 'build', 'outputs', 'apk', 'debug', 'app-debug.apk');
@@ -276,6 +278,20 @@ function _copyDir(src, dst) {
         const s = join(src, f), d = join(dst, f);
         statSync(s).isDirectory() ? _copyDir(s, d) : require('fs').copyFileSync(s, d);
     });
+}
+
+function _checkNativeLibs() {
+    const abis = ['arm64-v8a', 'armeabi-v7a', 'x86_64', 'x86'];
+    const jniDir = join(_templateDir(), 'app', 'src', 'main', 'jniLibs');
+    const missing = abis.filter(abi => !existsSync(join(jniDir, abi, 'libquickjs.so')));
+    if (missing.length) {
+        console.error('\n  ✗ Missing libquickjs.so for: ' + missing.join(', '));
+        console.error('  The pre-built native library is required to build.');
+        console.error('  Go to: https://github.com/rudrachitambare/CtrlScript/actions');
+        console.error('  Run "Build Native Libraries" workflow, then git pull.\n');
+        process.exit(1);
+    }
+    tick('Native libs present (' + abis.length + ' ABIs)');
 }
 
 function _bar(pct) { const w=20, f=Math.round(pct/100*w); return '█'.repeat(f)+'░'.repeat(w-f); }

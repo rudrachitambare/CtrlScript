@@ -15,7 +15,8 @@
     "logs":    "node cli/index.js logs"
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=18",
+    "bun": ">=1.0"
   },
   "keywords": ["android", "native", "javascript", "no-webview", "ctrlscript"],
   "license": "MIT"

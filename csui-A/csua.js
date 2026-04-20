@@ -202,7 +202,6 @@ export class Box extends BaseElement {
             props = containerRef; containerRef = null;
         }
         super(containerRef, 'LinearLayout');
-        this._viewId = bridge.createView('LinearLayout');
 
         if (typeof containerRef === 'string' && !_namedContainers[containerRef]) {
             _namedContainers[containerRef] = this;
@@ -680,6 +679,7 @@ export const app = {
     exit()           { bridge.call('app', 'exit'); },
     get version()    { return bridge.call('app', 'version'); },
     get package()    { return bridge.call('app', 'package'); },
+    devtools()       { bridge.call('app', 'devtools'); },
 };
 
 
@@ -1055,113 +1055,97 @@ export function palette(baseColor, { name = 'color', shades = [50,100,200,300,40
 // UI components — native Android equivalents via dialog/views
 export class DropdownMenu extends BaseElement {
     constructor(ref, props = {}) {
-        super(ref);
-        const { label = 'Select', items = [], onSelect } = props;
-        this.el = bridge.createView('Spinner');
-        bridge.setProp(this.el, 'entries', JSON.stringify(items.map(i => i.label || i)));
-        if (onSelect) bridge.call('events', 'onItemSelected', String(this.el), 'select');
+        super(ref, 'Spinner');
+        const { items = [], onSelect } = props;
+        bridge.setProp(this._viewId, 'entries', JSON.stringify(items.map(i => i.label || i)));
+        if (onSelect) bridge.call('events', 'onItemSelected', String(this._viewId), 'select');
         this._onSelect = onSelect;
-        this._attachToContainer();
-        if (Object.keys(props).length) this.props = props;
+        this._attach();
     }
 }
 export class Modal extends BaseElement {
     constructor(ref, props = {}) {
-        super(ref);
+        super(ref, 'LinearLayout');
         const { title = '', content = '', onClose } = props;
-        this.el = 0;
         dialog.alert(`${title}\n\n${content}`).then(() => onClose?.());
     }
-    open()  { dialog.alert(''); }
+    open()  {}
     close() {}
 }
 export class Tabs extends BaseElement {
     constructor(ref, props = {}) {
-        super(ref);
-        this.el = bridge.createView('TabLayout');
-        (props.tabs || []).forEach(t => bridge.call('views', 'addTab', String(this.el), t.label || t));
-        this._attachToContainer();
+        super(ref, 'TabLayout');
+        (props.tabs || []).forEach(t => bridge.call('views', 'addTab', String(this._viewId), t.label || t));
+        this._attach();
         if (Object.keys(props).length) this.props = props;
     }
 }
 export class Slider extends BaseElement {
     constructor(ref, props = {}) {
-        super(ref);
-        this.el = bridge.createView('SeekBar');
-        if (props.min !== undefined) bridge.setProp(this.el, 'min', props.min);
-        if (props.max !== undefined) bridge.setProp(this.el, 'max', props.max);
-        if (props.value !== undefined) bridge.setProp(this.el, 'progress', props.value);
-        if (props.onChange) bridge.call('events', 'onProgressChanged', String(this.el), 'change');
-        this._attachToContainer();
-        if (Object.keys(props).length) this.props = props;
+        super(ref, 'SeekBar');
+        if (props.min !== undefined)   bridge.setProp(this._viewId, 'min',      props.min);
+        if (props.max !== undefined)   bridge.setProp(this._viewId, 'max',      props.max);
+        if (props.value !== undefined) bridge.setProp(this._viewId, 'progress', props.value);
+        if (props.onChange) bridge.call('events', 'onProgressChanged', String(this._viewId), 'change');
+        this._attach();
     }
-    get value() { return bridge.call('views', 'getProp', String(this.el), 'progress'); }
-    set value(v) { bridge.setProp(this.el, 'progress', v); }
+    get value()  { return bridge.call('views', 'getProp', String(this._viewId), 'progress'); }
+    set value(v) { bridge.setProp(this._viewId, 'progress', v); }
 }
 export class ProgressBar extends BaseElement {
     constructor(ref, props = {}) {
-        super(ref);
-        this.el = bridge.createView('ProgressBar');
-        if (props.value !== undefined) bridge.setProp(this.el, 'progress', props.value);
-        if (props.max !== undefined)   bridge.setProp(this.el, 'max', props.max);
-        this._attachToContainer();
-        if (Object.keys(props).length) this.props = props;
+        super(ref, 'ProgressBar');
+        if (props.value !== undefined) bridge.setProp(this._viewId, 'progress', props.value);
+        if (props.max !== undefined)   bridge.setProp(this._viewId, 'max',      props.max);
+        this._attach();
     }
-    get value() { return bridge.call('views', 'getProp', String(this.el), 'progress'); }
-    set value(v) { bridge.setProp(this.el, 'progress', v); }
+    get value()  { return bridge.call('views', 'getProp', String(this._viewId), 'progress'); }
+    set value(v) { bridge.setProp(this._viewId, 'progress', v); }
 }
 export class Toggle extends BaseElement {
     constructor(ref, props = {}) {
-        super(ref);
-        this.el = bridge.createView('Switch');
-        if (props.checked !== undefined) bridge.setProp(this.el, 'checked', props.checked);
-        if (props.onChange) bridge.call('events', 'onCheckedChanged', String(this.el), 'change');
-        this._attachToContainer();
-        if (Object.keys(props).length) this.props = props;
+        super(ref, 'Switch');
+        if (props.checked !== undefined) bridge.setProp(this._viewId, 'checked', props.checked);
+        if (props.onChange) bridge.call('events', 'onCheckedChanged', String(this._viewId), 'change');
+        this._attach();
     }
-    get checked() { return bridge.call('views', 'getProp', String(this.el), 'checked'); }
-    set checked(v) { bridge.setProp(this.el, 'checked', v); }
+    get checked()  { return bridge.call('views', 'getProp', String(this._viewId), 'checked'); }
+    set checked(v) { bridge.setProp(this._viewId, 'checked', v); }
 }
 export class Accordion extends BaseElement {
     constructor(ref, props = {}) {
-        super(ref);
-        this.el = bridge.createView('LinearLayout');
+        super(ref, 'LinearLayout');
         (props.items || []).forEach(item => {
-            const row = new Button(null, { text: item.header || item.title || '' });
-            const body = new Label(null, { text: item.content || item.body || '' });
-            bridge.addChild(this.el, row.el);
-            bridge.addChild(this.el, body.el);
+            const row  = new Button(null, { text: item.header || item.title || '' });
+            const body = new Label(null,  { text: item.content || item.body || '' });
+            bridge.addChild(this._viewId, row._viewId);
+            bridge.addChild(this._viewId, body._viewId);
         });
-        this._attachToContainer();
+        this._attach();
     }
 }
 export class Drawer extends BaseElement {
     constructor(ref, props = {}) {
-        super(ref);
-        this.el = bridge.createView('DrawerLayout');
-        this._attachToContainer();
+        super(ref, 'DrawerLayout');
+        this._attach();
         if (Object.keys(props).length) this.props = props;
     }
-    open()  { bridge.call('views', 'openDrawer',  String(this.el)); }
-    close() { bridge.call('views', 'closeDrawer', String(this.el)); }
+    open()  { bridge.call('views', 'openDrawer',  String(this._viewId)); }
+    close() { bridge.call('views', 'closeDrawer', String(this._viewId)); }
 }
 export class Chip extends BaseElement {
     constructor(ref, props = {}) {
-        super(ref);
-        this.el = bridge.createView('Chip');
-        if (props.text) bridge.setProp(this.el, 'text', props.text);
-        this._attachToContainer();
-        if (Object.keys(props).length) this.props = props;
+        super(ref, 'Chip');
+        if (props.text) bridge.setProp(this._viewId, 'text', props.text);
+        this._attach();
     }
 }
 export class Card extends BaseElement {
     constructor(ref, props = {}) {
-        super(ref);
-        this.el = bridge.createView('CardView');
-        if (props.title)   bridge.setProp(this.el, 'title',   props.title);
-        if (props.content) bridge.setProp(this.el, 'content', props.content);
-        this._attachToContainer();
-        if (Object.keys(props).length) this.props = props;
+        super(ref, 'CardView');
+        if (props.title)   bridge.setProp(this._viewId, 'title',   props.title);
+        if (props.content) bridge.setProp(this._viewId, 'content', props.content);
+        this._attach();
     }
 }
 

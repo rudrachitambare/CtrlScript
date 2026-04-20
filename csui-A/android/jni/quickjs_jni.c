@@ -77,8 +77,8 @@ static jobject js_to_java(CsuaCtx *c, JNIEnv *env, JSValue v) {
     if (JS_IsNumber(v)) {
         double d;
         JS_ToFloat64(c->ctx, &d, v);
-        // Use Integer if it's a whole number, else Double
-        if (d == (int64_t)d && d >= -2147483648.0 && d <= 2147483647.0) {
+        // Use Integer if it's a whole number within int32 range, else Double
+        if (d >= -2147483648.0 && d <= 2147483647.0 && d == (double)(int32_t)d) {
             jmethodID mid = (*env)->GetStaticMethodID(env, c->cls_Integer,
                 "valueOf", "(I)Ljava/lang/Integer;");
             return (*env)->CallStaticObjectMethod(env, c->cls_Integer, mid, (jint)d);
@@ -121,9 +121,10 @@ static JSValue java_to_js(CsuaCtx *c, JNIEnv *env, jobject obj) {
     }
     // Fallback: toString()
     jstring jstr = (jstring)(*env)->CallObjectMethod(env, obj, c->m_toString);
+    if (jstr == NULL) return JS_NewString(c->ctx, "[object]");
     const char *str = (*env)->GetStringUTFChars(env, jstr, NULL);
-    JSValue v = JS_NewString(c->ctx, str);
-    (*env)->ReleaseStringUTFChars(env, jstr, str);
+    JSValue v = str ? JS_NewString(c->ctx, str) : JS_NewString(c->ctx, "");
+    if (str) (*env)->ReleaseStringUTFChars(env, jstr, str);
     return v;
 }
 
@@ -248,6 +249,7 @@ static void _cache_refs(CsuaCtx *c, JNIEnv *env) {
 
     // BridgeInterface methods on Bootstrap
     jclass bridgeCls = (*env)->FindClass(env, PKG "/BridgeInterface");
+    if (!bridgeCls) { LOGE("BridgeInterface class not found"); return; }
     c->m_createView = (*env)->GetMethodID(env, bridgeCls, "createView",
         "(Ljava/lang/String;)I");
     c->m_setProp    = (*env)->GetMethodID(env, bridgeCls, "setProp",
@@ -305,7 +307,7 @@ Java_com_ctrlscript_csua_QuickJS_eval(JNIEnv *env, jclass cls,
     const char *file = (*env)->GetStringUTFChars(env, jfilename, NULL);
 
     JSValue result = JS_Eval(c->ctx, src, strlen(src), file,
-                             JS_EVAL_TYPE_MODULE | JS_EVAL_FLAG_STRICT);
+                             JS_EVAL_TYPE_GLOBAL);
 
     (*env)->ReleaseStringUTFChars(env, jsource,   src);
     (*env)->ReleaseStringUTFChars(env, jfilename, file);
@@ -374,7 +376,11 @@ Java_com_ctrlscript_csua_QuickJS_callFunction(JNIEnv *env, jclass cls,
     }
 
     int argc = jargs ? (*env)->GetArrayLength(env, jargs) : 0;
-    JSValue *argv = argc > 0 ? malloc(sizeof(JSValue) * argc) : NULL;
+    JSValue *argv = NULL;
+    if (argc > 0) {
+        argv = malloc(sizeof(JSValue) * argc);
+        if (!argv) { JS_FreeValue(c->ctx, fn); return NULL; }
+    }
     for (int i = 0; i < argc; i++) {
         jobject jarg = (*env)->GetObjectArrayElement(env, jargs, i);
         argv[i] = java_to_js(c, env, jarg);

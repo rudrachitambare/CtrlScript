@@ -10,10 +10,12 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.LinearLayout;
 
+import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.CountDownLatch;
 
 /**
  * Bootstrap — entry point for every CSUA app.
@@ -56,6 +58,7 @@ public class Bootstrap extends Activity implements BridgeInterface {
 
         _registerModules();
         _startJS();
+        _setupDevGesture();
     }
 
     @Override protected void onPause()   { super.onPause();   _fireLifecycle("_csuaAppPause");   }
@@ -70,7 +73,7 @@ public class Bootstrap extends Activity implements BridgeInterface {
     public void onBackPressed() {
         Object handled = QuickJS.eval(_jsContext,
             "if(typeof _csuaAppBack==='function'){_csuaAppBack();true;}else{false;}", "<back>");
-        if (!"true".equals(String.valueOf(handled))) super.onBackPressed();
+        if (!"true".equals(handled)) super.onBackPressed();
     }
 
     @Override
@@ -96,7 +99,7 @@ public class Bootstrap extends Activity implements BridgeInterface {
     @Override
     public int createView(String type) {
         int[] result = { 0 };
-        Object lock = new Object();
+        CountDownLatch latch = new CountDownLatch(1);
         _ui.post(() -> {
             View v = ModuleViews.create(this, type);
             if (v != null) {
@@ -104,11 +107,9 @@ public class Bootstrap extends Activity implements BridgeInterface {
                 _views.put(id, v);
                 result[0] = id;
             }
-            synchronized (lock) { lock.notify(); }
+            latch.countDown();
         });
-        synchronized (lock) {
-            try { lock.wait(1000); } catch (InterruptedException ignored) {}
-        }
+        try { latch.await(); } catch (InterruptedException ignored) {}
         return result[0];
     }
 
@@ -230,6 +231,136 @@ public class Bootstrap extends Activity implements BridgeInterface {
             "if(typeof " + fn + "==='function'){" + fn + "()}", "<lifecycle>"));
     }
 
+    // ── Dev tools ────────────────────────────────────────
+    // 5-finger tap anywhere → opens dev overlay (debug builds only)
+
+    private void _setupDevGesture() {
+        _root.setOnTouchListener((v, event) -> {
+            if (event.getActionMasked() == android.view.MotionEvent.ACTION_POINTER_DOWN
+                    && event.getPointerCount() == 5) {
+                _ui.post(this::_showDevOverlay);
+            }
+            return false; // don't consume — pass through to children
+        });
+    }
+
+    public void _showDevOverlay() {
+        // Remove existing overlay if present
+        View existing = _root.findViewWithTag("_csuaDevOverlay");
+        if (existing != null) { _root.removeView(existing); return; }
+
+        android.widget.ScrollView scroll = new android.widget.ScrollView(this);
+        scroll.setTag("_csuaDevOverlay");
+        LinearLayout panel = new LinearLayout(this);
+        panel.setOrientation(LinearLayout.VERTICAL);
+        panel.setBackgroundColor(0xEE111827);
+        panel.setPadding(24, 60, 24, 24);
+
+        // Title
+        android.widget.TextView title = new android.widget.TextView(this);
+        title.setText("CSUA Dev Tools");
+        title.setTextColor(0xFF60A5FA);
+        title.setTextSize(18);
+        title.setTypeface(null, android.graphics.Typeface.BOLD);
+        panel.addView(title);
+
+        // Info rows
+        String[] info = {
+            "Package: " + getPackageName(),
+            "Version: " + _appVersion(),
+            "JS Thread: csua-js",
+            "QuickJS ctx: 0x" + Long.toHexString(_jsContext),
+            "Views allocated: " + _viewCounter,
+            "Modules loaded: " + _modules.size(),
+        };
+        for (String line : info) {
+            android.widget.TextView tv = new android.widget.TextView(this);
+            tv.setText(line);
+            tv.setTextColor(0xFFD1D5DB);
+            tv.setTextSize(12);
+            tv.setTypeface(android.graphics.Typeface.MONOSPACE);
+            tv.setPadding(0, 4, 0, 4);
+            panel.addView(tv);
+        }
+
+        // Reload button
+        android.widget.Button reload = new android.widget.Button(this);
+        reload.setText("Reload JS");
+        reload.setTextColor(0xFFFFFFFF);
+        reload.setBackgroundColor(0xFF2563EB);
+        reload.setPadding(16, 12, 16, 12);
+        reload.setOnClickListener(x -> {
+            _root.removeView(scroll);
+            runOnJSThread(() -> {
+                try {
+                    String app = _readAsset("app.js");
+                    QuickJS.eval(_jsContext, app, "app.js");
+                } catch (Exception e) {
+                    _ui.post(() -> _showError(e.getMessage()));
+                }
+            });
+        });
+        panel.addView(reload);
+
+        // Eval box
+        android.widget.EditText evalBox = new android.widget.EditText(this);
+        evalBox.setHint("Eval JS expression…");
+        evalBox.setTextColor(0xFFFFFFFF);
+        evalBox.setHintTextColor(0xFF6B7280);
+        evalBox.setBackgroundColor(0xFF1F2937);
+        evalBox.setPadding(12, 10, 12, 10);
+        evalBox.setTypeface(android.graphics.Typeface.MONOSPACE);
+        LinearLayout.LayoutParams ep = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        ep.topMargin = 12;
+        evalBox.setLayoutParams(ep);
+        panel.addView(evalBox);
+
+        android.widget.TextView evalOut = new android.widget.TextView(this);
+        evalOut.setTextColor(0xFF34D399);
+        evalOut.setTextSize(11);
+        evalOut.setTypeface(android.graphics.Typeface.MONOSPACE);
+        evalOut.setPadding(0, 6, 0, 0);
+        panel.addView(evalOut);
+
+        android.widget.Button evalBtn = new android.widget.Button(this);
+        evalBtn.setText("Run");
+        evalBtn.setBackgroundColor(0xFF065F46);
+        evalBtn.setTextColor(0xFFFFFFFF);
+        evalBtn.setOnClickListener(x -> {
+            String expr = evalBox.getText().toString().trim();
+            if (expr.isEmpty()) return;
+            runOnJSThread(() -> {
+                Object res = QuickJS.eval(_jsContext, expr, "<devtools>");
+                _ui.post(() -> evalOut.setText("→ " + res));
+            });
+        });
+        panel.addView(evalBtn);
+
+        // Close button
+        android.widget.Button close = new android.widget.Button(this);
+        close.setText("Close");
+        close.setBackgroundColor(0xFF374151);
+        close.setTextColor(0xFFFFFFFF);
+        LinearLayout.LayoutParams cp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        cp.topMargin = 8;
+        close.setLayoutParams(cp);
+        close.setOnClickListener(x -> _root.removeView(scroll));
+        panel.addView(close);
+
+        scroll.addView(panel);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
+        _root.addView(scroll, lp);
+    }
+
+    private String _appVersion() {
+        try {
+            return getPackageManager().getPackageInfo(getPackageName(), 0).versionName;
+        } catch (Exception e) { return "?"; }
+    }
+
     private void _showError(String message) {
         LinearLayout overlay = new LinearLayout(this);
         overlay.setOrientation(LinearLayout.VERTICAL);
@@ -262,9 +393,11 @@ public class Bootstrap extends Activity implements BridgeInterface {
             return new String(java.nio.file.Files.readAllBytes(devFile.toPath()), StandardCharsets.UTF_8);
         }
         try (InputStream is = getAssets().open(filename)) {
-            byte[] buf = new byte[is.available()];
-            is.read(buf);
-            return new String(buf, StandardCharsets.UTF_8);
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            byte[] buf = new byte[8192];
+            int n;
+            while ((n = is.read(buf)) != -1) out.write(buf, 0, n);
+            return out.toString(StandardCharsets.UTF_8.name());
         }
     }
 }

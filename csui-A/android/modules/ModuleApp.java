@@ -13,7 +13,8 @@ public class ModuleApp implements CsuaModule {
             case "exit": _ctx._ui.post(() -> { _ctx.finish(); android.os.Process.killProcess(android.os.Process.myPid()); }); return null;
             case "version": return _version();
             case "package": return _ctx.getPackageName();
-            case "clearRoot": _ctx._ui.post(() -> _ctx._root.removeAllViews()); return null;
+            case "clearRoot":  _ctx._ui.post(() -> _ctx._root.removeAllViews()); return null;
+            case "devtools":   _ctx._ui.post(_ctx::_showDevOverlay); return null;
             case "requestFrame": {
                 String cbName = s(args[0]);
                 _ctx._ui.post(() -> _ctx.runOnJSThread(() ->
