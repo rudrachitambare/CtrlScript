@@ -791,7 +791,139 @@ export const background = {
 
 
 // ──────────────────────────────────────────────────────
-// §23  ANIMATIONS  (native Android property animations)
+// §23  2D GAME ENGINE  (pure-JS physics, syncs to Views)
+// ──────────────────────────────────────────────────────
+
+export const engine2d = (() => {
+    let _running  = false;
+    let _stopLoop = null;
+    let _bodies   = [];
+    let _gravity  = { x: 0, y: 0.5 };   // px per frame²
+    const FIXED   = 1 / 60;             // 60 Hz fixed timestep
+
+    function _makeBody(opts) {
+        return {
+            x: opts.x || 0, y: opts.y || 0,
+            w: opts.w || opts.width  || (opts.radius ? opts.radius * 2 : 40),
+            h: opts.h || opts.height || (opts.radius ? opts.radius * 2 : 40),
+            vx: 0, vy: 0,
+            mass: opts.mass || 1,
+            bounce:   opts.bounce   ?? 0.4,
+            friction: opts.friction ?? 0.05,
+            isStatic: opts.isStatic || false,
+            _el: null,          // linked BaseElement
+        };
+    }
+
+    function _step(world) {
+        const gx = _gravity.x, gy = _gravity.y;
+        for (const b of _bodies) {
+            if (b.isStatic) continue;
+            b.vx += gx;
+            b.vy += gy;
+            b.vx *= (1 - b.friction);
+            b.x  += b.vx;
+            b.y  += b.vy;
+
+            // World bounds
+            if (world && b.y + b.h > world.h) {
+                b.y   = world.h - b.h;
+                b.vy *= -b.bounce;
+                b.vx *= (1 - b.friction * 3);
+            }
+            if (world && b.y < 0)           { b.y = 0;           b.vy *= -b.bounce; }
+            if (world && b.x < 0)           { b.x = 0;           b.vx *= -b.bounce; }
+            if (world && b.x + b.w > world.w){ b.x = world.w - b.w; b.vx *= -b.bounce; }
+        }
+
+        // AABB collision between bodies
+        for (let i = 0; i < _bodies.length; i++) {
+            for (let j = i + 1; j < _bodies.length; j++) {
+                const a = _bodies[i], b = _bodies[j];
+                if (a.isStatic && b.isStatic) continue;
+                const ox = (a.x + a.w / 2) - (b.x + b.w / 2);
+                const oy = (a.y + a.h / 2) - (b.y + b.h / 2);
+                const hw = (a.w + b.w) / 2, hh = (a.h + b.h) / 2;
+                if (Math.abs(ox) < hw && Math.abs(oy) < hh) {
+                    const dx = hw - Math.abs(ox), dy = hh - Math.abs(oy);
+                    if (dx < dy) {
+                        const s = Math.sign(ox);
+                        if (!a.isStatic) a.x += s * dx / 2;
+                        if (!b.isStatic) b.x -= s * dx / 2;
+                        const relVx = a.vx - b.vx;
+                        if (!a.isStatic) a.vx = -relVx * a.bounce;
+                        if (!b.isStatic) b.vx =  relVx * b.bounce;
+                    } else {
+                        const s = Math.sign(oy);
+                        if (!a.isStatic) a.y += s * dy / 2;
+                        if (!b.isStatic) b.y -= s * dy / 2;
+                        const relVy = a.vy - b.vy;
+                        if (!a.isStatic) a.vy = -relVy * a.bounce;
+                        if (!b.isStatic) b.vy =  relVy * b.bounce;
+                    }
+                }
+            }
+        }
+
+        // Sync positions back to Android Views
+        for (const b of _bodies) {
+            if (b._el) {
+                bridge.setProp(b._el._viewId, 'x', Math.round(b.x));
+                bridge.setProp(b._el._viewId, 'y', Math.round(b.y));
+            }
+        }
+    }
+
+    return {
+        init({ gravity = { x: 0, y: 0.5 }, width, height } = {}) {
+            _gravity  = gravity;
+            _bodies   = [];
+            _running  = true;
+            const world = { w: width || 1080, h: height || 1920 };
+            _stopLoop = loop(() => _step(world));
+            return Promise.resolve();
+        },
+
+        attach(element, opts = {}) {
+            const b = _makeBody({ x: 0, y: 0, w: 100, h: 100, ...opts });
+            b._el   = element;
+            _bodies.push(b);
+            element._physicsBody = b;
+            return Promise.resolve(b);
+        },
+
+        addGround(y, width = 1080, height = 20) {
+            const g = _makeBody({ x: 0, y, w: width, h: height, isStatic: true });
+            _bodies.push(g);
+            return Promise.resolve(g);
+        },
+
+        addBody(opts = {}) {
+            const b = _makeBody(opts);
+            _bodies.push(b);
+            return b;
+        },
+
+        applyForce(body, fx, fy) {
+            if (!body.isStatic) { body.vx += fx / body.mass; body.vy += fy / body.mass; }
+        },
+
+        stop() {
+            _running = false;
+            if (_stopLoop) { _stopLoop(); _stopLoop = null; }
+            _bodies = [];
+        },
+    };
+})();
+
+// element.physics(opts) — convenience method matching csui.js
+BaseElement.prototype.physics = function(opts = {}) {
+    engine2d.attach(this, opts);
+    return this;
+};
+
+// ──────────────────────────────────────────────────────
+// §24  ANIMATIONS  (native Android property animations)
 // ──────────────────────────────────────────────────────
 
 export function animate(element, props = {}, { duration = 300, easing = 'ease', delay = 0 } = {}) {
@@ -886,6 +1018,8 @@ export const ctrlscript = {
     background,
     animate,
     onTouch, onSwipe, onPinch,
+    // Game
+    engine2d,
     // Plugin
     use,
 };
@@ -1086,5 +1220,6 @@ Object.assign(ctrlscript, {
     onKey, collides, checkOverlap, ask, camera, sound, palette,
     DropdownMenu, Modal, Tabs, Slider, ProgressBar, Toggle,
     Accordion, Drawer, Chip, Card,
+    engine2d,
 });
 use.bind && (ctrlscript.use = use);
