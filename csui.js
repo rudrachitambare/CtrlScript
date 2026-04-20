@@ -3097,3 +3097,218 @@ ctrlscript.use = use;
 // Short alias
 export { ctrlscript as CS };
 
+// ── §21 — Android Compatibility Layer ────────────────────────────────────────
+// Stubs so the same app.js runs in both csui (browser) and csua (Android).
+// Android-only APIs fall back to browser equivalents or log a warning.
+
+const _noop    = () => {};
+const _warn    = (api) => { console.warn(`[csui] '${api}' is Android-only — no-op in browser.`); };
+const _promise = (api, val = null) => { _warn(api); return Promise.resolve(val); };
+
+// Missing element classes
+export class ScrollBox extends Box {
+    constructor(ref, props = {}) { super(ref, { overflow: 'auto', ...props }); }
+}
+export class TextArea extends Input {
+    constructor(ref, props = {}) {
+        super(ref, props);
+        const ta = document.createElement('textarea');
+        ta.style.cssText = this.el.style.cssText;
+        this.el.replaceWith(ta);
+        this.el = ta;
+        if (props.text) ta.value = props.text;
+    }
+    get text()    { return this.el.value; }
+    set text(v)   { this.el.value = v; }
+}
+export class Rectangle extends Box {
+    constructor(ref, props = {}) { super(ref, props); }
+}
+export const Square = Rectangle;
+export class Circle extends Box {
+    constructor(ref, props = {}) { super(ref, { br: '50%', ...props }); }
+}
+export class SafeArea extends Box {
+    constructor(ref, props = {}) {
+        super(ref, props);
+        this.el.style.paddingTop    = 'env(safe-area-inset-top, 0px)';
+        this.el.style.paddingBottom = 'env(safe-area-inset-bottom, 0px)';
+    }
+}
+export class List extends Box {
+    constructor(ref, props = {}) { super(ref, props); }
+    setItems(items, renderFn) {
+        this.el.innerHTML = '';
+        items.forEach(item => {
+            const wrapper = document.createElement('div');
+            this.el.appendChild(wrapper);
+            renderFn(item, wrapper);
+        });
+    }
+}
+
+// Timers — align with csua names
+export function stopLoop(fn) {
+    // csui loop() returns a cancel handle; stopLoop mirrors csua's API
+    _warn('stopLoop — use the return value of loop() in csui');
+}
+export function cancel(id) { clearTimeout(id); clearInterval(id); }
+export function clearAll() { localStorage.clear(); }
+
+// db — localStorage-backed IndexedDB-style shim
+export const db = {
+    run(sql, ...args)    { _warn('db.run'); return Promise.resolve(); },
+    query(sql, ...args)  { _warn('db.query'); return Promise.resolve([]); },
+    get(sql, ...args)    { _warn('db.get'); return Promise.resolve(null); },
+};
+
+// files — no file system in browser
+export const files = {
+    read(path)         { return _promise('files.read'); },
+    write(path, data)  { return _promise('files.write'); },
+    delete(path)       { return _promise('files.delete'); },
+    exists(path)       { return _promise('files.exists', false); },
+    list(dir)          { return _promise('files.list', []); },
+};
+
+// perm — browser Permissions API where possible
+export const perm = {
+    request(...perms) {
+        const browserMap = { camera: 'camera', microphone: 'microphone', location: 'geolocation' };
+        const p = perms[0];
+        if (browserMap[p] && navigator.permissions) {
+            return navigator.permissions.query({ name: browserMap[p] })
+                .then(r => r.state === 'granted');
+        }
+        return Promise.resolve(true);
+    },
+    check(p) { return this.request(p); },
+};
+export const permission  = perm;
+export const permissions = perm;
+
+// Sound class — wraps browser Audio
+export class Sound {
+    constructor(src) { this._a = new Audio(src); }
+    play()           { this._a.play(); }
+    pause()          { this._a.pause(); }
+    stop()           { this._a.pause(); this._a.currentTime = 0; }
+    set volume(v)    { this._a.volume = v; }
+    set loop(v)      { this._a.loop = v; }
+}
+
+// app — lifecycle shims
+export const app = {
+    onPause(fn)   { window.addEventListener('blur',  fn); },
+    onResume(fn)  { window.addEventListener('focus', fn); },
+    onDestroy(fn) { window.addEventListener('beforeunload', fn); },
+    onBack(fn)    { window.addEventListener('popstate', fn); },
+    version()     { return '1.0.0'; },
+    clearRoot()   { document.body.innerHTML = ''; },
+    requestFrame(fn) { requestAnimationFrame(fn); },
+};
+
+// keyboard — virtual keyboard stub (desktop always shows physical keyboard)
+export const keyboard = {
+    show()  { _warn('keyboard.show'); },
+    hide()  { _warn('keyboard.hide'); },
+    onShow(fn) { _warn('keyboard.onShow'); },
+    onHide(fn) { _warn('keyboard.onHide'); },
+};
+
+// statusBar / navigationBar — no equivalent in browser
+export const statusBar = {
+    color(c)   { _warn('statusBar.color'); },
+    light()    { _warn('statusBar.light'); },
+    dark()     { _warn('statusBar.dark'); },
+    hide()     { _warn('statusBar.hide'); },
+    show()     { _warn('statusBar.show'); },
+};
+export const navigationBar = {
+    color(c)  { _warn('navigationBar.color'); },
+    hide()    { _warn('navigationBar.hide'); },
+    show()    { _warn('navigationBar.show'); },
+};
+
+// share — Web Share API with fallback
+export function share({ text = '', title = '', url = '' } = {}) {
+    if (navigator.share) return navigator.share({ title, text, url });
+    prompt('Copy to share:', `${title}\n${text}\n${url}`);
+    return Promise.resolve();
+}
+export function openUrl(url)         { window.open(url, '_blank'); }
+export function openApp(pkg)         { _warn('openApp'); }
+export function openSettings()       { _warn('openSettings'); }
+export function openMaps({ lat, lng, label = '' } = {}) {
+    window.open(`https://maps.google.com/?q=${lat},${lng}`, '_blank');
+}
+
+// dialog — browser native
+export const dialog = {
+    alert(msg)                { return new Promise(r => { alert(msg); r(); }); },
+    confirm(msg)              { return new Promise(r => r(window.confirm(msg))); },
+    prompt(msg, def = '')     { return new Promise(r => r(window.prompt(msg, def))); },
+    datePicker(opts = {})     { return _promise('dialog.datePicker'); },
+    timePicker(opts = {})     { return _promise('dialog.timePicker'); },
+};
+
+// background — stub (Service Worker could work but out of scope)
+export const background = {
+    schedule(fn, opts = {})   { _warn('background.schedule'); },
+    cancel(id)                { _warn('background.cancel'); },
+};
+
+// animate — CSS transition helper
+export function animate(element, props = {}, { duration = 300, easing = 'ease', delay = 0 } = {}) {
+    const el = element.el || element;
+    el.style.transition = `all ${duration}ms ${easing} ${delay}ms`;
+    Object.entries(props).forEach(([k, v]) => { el.style[k] = v; });
+    return new Promise(r => setTimeout(r, duration + delay));
+}
+
+// onTouch / onSwipe / onPinch — mouse + touch events
+export function onTouch(element, fn) {
+    const el = element.el || element;
+    const handle = e => {
+        const t = e.touches ? e.touches[0] : e;
+        fn({ x: t.clientX, y: t.clientY, type: e.type });
+    };
+    el.addEventListener('mousedown', handle);
+    el.addEventListener('touchstart', handle, { passive: true });
+}
+export function onSwipe(element, fn) {
+    const el = element.el || element;
+    let sx, sy;
+    el.addEventListener('touchstart', e => { sx = e.touches[0].clientX; sy = e.touches[0].clientY; }, { passive: true });
+    el.addEventListener('touchend', e => {
+        const dx = e.changedTouches[0].clientX - sx;
+        const dy = e.changedTouches[0].clientY - sy;
+        const dir = Math.abs(dx) > Math.abs(dy)
+            ? (dx > 0 ? 'right' : 'left')
+            : (dy > 0 ? 'down'  : 'up');
+        fn({ direction: dir, dx, dy });
+    }, { passive: true });
+}
+export function onPinch(element, fn) {
+    const el = element.el || element;
+    let lastDist = 0;
+    el.addEventListener('touchmove', e => {
+        if (e.touches.length < 2) return;
+        const dx = e.touches[0].clientX - e.touches[1].clientX;
+        const dy = e.touches[0].clientY - e.touches[1].clientY;
+        const dist = Math.hypot(dx, dy);
+        fn({ scale: dist / (lastDist || dist), distance: dist });
+        lastDist = dist;
+    }, { passive: true });
+}
+
+// Extend ctrlscript namespace with new exports
+Object.assign(ctrlscript, {
+    ScrollBox, TextArea, Rectangle, Square, Circle, SafeArea, List,
+    stopLoop, cancel, clearAll, db, files,
+    perm, permission, permissions, Sound,
+    app, keyboard, statusBar, navigationBar,
+    share, openUrl, openApp, openSettings, openMaps,
+    dialog, background, animate, onTouch, onSwipe, onPinch,
+});
+

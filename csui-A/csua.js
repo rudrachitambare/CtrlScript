@@ -891,4 +891,200 @@ export const ctrlscript = {
 };
 
 export const CS = ctrlscript;
+
+// ── §27 — Browser Compatibility Layer ────────────────────────────────────────
+// Stubs so the same app.js runs in both csua (Android) and csui (browser).
+// Browser-only APIs are mapped to Android equivalents or logged as no-ops.
+
+// onKey — no physical keyboard on Android usually; stub gracefully
+export function onKey(key, fn, { up = false } = {}) {
+    console.warn(`[csua] onKey('${key}') — no physical keyboard on Android.`);
+}
+
+// collides / checkOverlap — pure math, works on both
+export function collides(a, b) {
+    const ar = a.el ? a.el.getBoundingClientRect?.() : a;
+    const br = b.el ? b.el.getBoundingClientRect?.() : b;
+    if (!ar || !br) return false;
+    return !(ar.right < br.left || ar.left > br.right ||
+             ar.bottom < br.top || ar.top > br.bottom);
+}
+export const checkOverlap = collides;
+
+// ask — maps to dialog.prompt
+export function ask(message, defaultVal = '') {
+    return dialog.prompt(message, defaultVal);
+}
+
+// camera (webcam alias) — maps to Android camera
+export const camera = {
+    snap(opts = {})   { return device.camera.snap(opts); },
+    record(opts = {}) { return device.camera.record(opts); },
+    pick(opts = {})   { return device.camera.pick(opts); },
+};
+
+// sound (lowercase object) — maps to Sound class
+export const sound = {
+    play(src, opts = {}) {
+        const s = new Sound(src);
+        if (opts.volume !== undefined) s.volume = opts.volume;
+        if (opts.loop)                 s.loop   = true;
+        s.play();
+        return s;
+    },
+    stop(s) { if (s && s.stop) s.stop(); },
+};
+
+// palette — same pure-math function as csui.js
+export function palette(baseColor, { name = 'color', shades = [50,100,200,300,400,500,600,700,800,900,950] } = {}) {
+    function hexToRgb(h) {
+        h = h.replace('#','');
+        if (h.length === 3) h = h.split('').map(c=>c+c).join('');
+        return [parseInt(h.slice(0,2),16), parseInt(h.slice(2,4),16), parseInt(h.slice(4,6),16)];
+    }
+    function rgbToHsl(r,g,b) {
+        r/=255; g/=255; b/=255;
+        const max=Math.max(r,g,b), min=Math.min(r,g,b), l=(max+min)/2;
+        if (max===min) return [0,0,l];
+        const d=max-min, s=l>0.5?d/(2-max-min):d/(max+min);
+        const h=max===r?((g-b)/d+(g<b?6:0))/6:max===g?((b-r)/d+2)/6:((r-g)/d+4)/6;
+        return [h*360,s,l];
+    }
+    function hslToHex(h,s,l) {
+        h/=360;
+        const q=l<0.5?l*(1+s):l+s-l*s, p=2*l-q;
+        const hue2rgb=(p,q,t)=>{if(t<0)t+=1;if(t>1)t-=1;return t<1/6?p+(q-p)*6*t:t<1/2?q:t<2/3?p+(q-p)*(2/3-t)*6:p};
+        return '#'+[h+1/3,h,h-1/3].map(t=>Math.round(hue2rgb(p,q,t)*255).toString(16).padStart(2,'0')).join('');
+    }
+    const [r,g,b] = hexToRgb(baseColor);
+    const [h,s,baseL] = rgbToHsl(r,g,b);
+    const result = {};
+    shades.forEach(shade => {
+        const t = shade / 1000;
+        const l = shade <= 500 ? baseL + (1 - baseL) * (1 - t * 2) : baseL - baseL * (t * 2 - 1);
+        result[shade] = hslToHex(h, s, Math.max(0, Math.min(1, l)));
+    });
+    console.log(`[csua] palette '${name}':`, JSON.stringify(result));
+    return result;
+}
+
+// UI components — native Android equivalents via dialog/views
+export class DropdownMenu extends BaseElement {
+    constructor(ref, props = {}) {
+        super(ref);
+        const { label = 'Select', items = [], onSelect } = props;
+        this.el = bridge.createView('Spinner');
+        bridge.setProp(this.el, 'entries', JSON.stringify(items.map(i => i.label || i)));
+        if (onSelect) bridge.call('events', 'onItemSelected', String(this.el), 'select');
+        this._onSelect = onSelect;
+        this._attachToContainer();
+        if (Object.keys(props).length) this.props = props;
+    }
+}
+export class Modal extends BaseElement {
+    constructor(ref, props = {}) {
+        super(ref);
+        const { title = '', content = '', onClose } = props;
+        this.el = 0;
+        dialog.alert(`${title}\n\n${content}`).then(() => onClose?.());
+    }
+    open()  { dialog.alert(''); }
+    close() {}
+}
+export class Tabs extends BaseElement {
+    constructor(ref, props = {}) {
+        super(ref);
+        this.el = bridge.createView('TabLayout');
+        (props.tabs || []).forEach(t => bridge.call('views', 'addTab', String(this.el), t.label || t));
+        this._attachToContainer();
+        if (Object.keys(props).length) this.props = props;
+    }
+}
+export class Slider extends BaseElement {
+    constructor(ref, props = {}) {
+        super(ref);
+        this.el = bridge.createView('SeekBar');
+        if (props.min !== undefined) bridge.setProp(this.el, 'min', props.min);
+        if (props.max !== undefined) bridge.setProp(this.el, 'max', props.max);
+        if (props.value !== undefined) bridge.setProp(this.el, 'progress', props.value);
+        if (props.onChange) bridge.call('events', 'onProgressChanged', String(this.el), 'change');
+        this._attachToContainer();
+        if (Object.keys(props).length) this.props = props;
+    }
+    get value() { return bridge.call('views', 'getProp', String(this.el), 'progress'); }
+    set value(v) { bridge.setProp(this.el, 'progress', v); }
+}
+export class ProgressBar extends BaseElement {
+    constructor(ref, props = {}) {
+        super(ref);
+        this.el = bridge.createView('ProgressBar');
+        if (props.value !== undefined) bridge.setProp(this.el, 'progress', props.value);
+        if (props.max !== undefined)   bridge.setProp(this.el, 'max', props.max);
+        this._attachToContainer();
+        if (Object.keys(props).length) this.props = props;
+    }
+    get value() { return bridge.call('views', 'getProp', String(this.el), 'progress'); }
+    set value(v) { bridge.setProp(this.el, 'progress', v); }
+}
+export class Toggle extends BaseElement {
+    constructor(ref, props = {}) {
+        super(ref);
+        this.el = bridge.createView('Switch');
+        if (props.checked !== undefined) bridge.setProp(this.el, 'checked', props.checked);
+        if (props.onChange) bridge.call('events', 'onCheckedChanged', String(this.el), 'change');
+        this._attachToContainer();
+        if (Object.keys(props).length) this.props = props;
+    }
+    get checked() { return bridge.call('views', 'getProp', String(this.el), 'checked'); }
+    set checked(v) { bridge.setProp(this.el, 'checked', v); }
+}
+export class Accordion extends BaseElement {
+    constructor(ref, props = {}) {
+        super(ref);
+        this.el = bridge.createView('LinearLayout');
+        (props.items || []).forEach(item => {
+            const row = new Button(null, { text: item.header || item.title || '' });
+            const body = new Label(null, { text: item.content || item.body || '' });
+            bridge.addChild(this.el, row.el);
+            bridge.addChild(this.el, body.el);
+        });
+        this._attachToContainer();
+    }
+}
+export class Drawer extends BaseElement {
+    constructor(ref, props = {}) {
+        super(ref);
+        this.el = bridge.createView('DrawerLayout');
+        this._attachToContainer();
+        if (Object.keys(props).length) this.props = props;
+    }
+    open()  { bridge.call('views', 'openDrawer',  String(this.el)); }
+    close() { bridge.call('views', 'closeDrawer', String(this.el)); }
+}
+export class Chip extends BaseElement {
+    constructor(ref, props = {}) {
+        super(ref);
+        this.el = bridge.createView('Chip');
+        if (props.text) bridge.setProp(this.el, 'text', props.text);
+        this._attachToContainer();
+        if (Object.keys(props).length) this.props = props;
+    }
+}
+export class Card extends BaseElement {
+    constructor(ref, props = {}) {
+        super(ref);
+        this.el = bridge.createView('CardView');
+        if (props.title)   bridge.setProp(this.el, 'title',   props.title);
+        if (props.content) bridge.setProp(this.el, 'content', props.content);
+        this._attachToContainer();
+        if (Object.keys(props).length) this.props = props;
+    }
+}
+
+// Update ctrlscript namespace
+Object.assign(ctrlscript, {
+    onKey, collides, checkOverlap, ask, camera, sound, palette,
+    DropdownMenu, Modal, Tabs, Slider, ProgressBar, Toggle,
+    Accordion, Drawer, Chip, Card,
+});
 use.bind && (ctrlscript.use = use);
