@@ -174,8 +174,14 @@ Planned modules: Camera, Bluetooth, NFC, Sensors, Biometric, Intents, Notificati
 |---|---|
 | csui (web) | 🟢 Core solid, actively evolving |
 | csui-A (Android) | 🟡 Early WIP, architecture in place |
-| Docs site | 🔨 In progress |
+| Docs site | 🟢 |
+| Playground/Web IDE for dev | 🟢 UI overhaul underway |
 | Interactive playground | 🔨 In progress |
+
+---
+
+## Where to try or learn CtrlScript
+On my website -> which is not published as of now
 
 ---
 
