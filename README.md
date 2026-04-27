@@ -182,7 +182,7 @@ Planned modules: Camera, Bluetooth, NFC, Sensors, Biometric, Intents, Notificati
 
 ## Where to try or learn CtrlScript
 On my website -> which is not published as of now
-
+** RRudra.dev/ctrlscript/ ** (please dont steal the name rudra.dev was taken)
 ---
 
 > Built by a developer who wanted full control without the overhead.  
