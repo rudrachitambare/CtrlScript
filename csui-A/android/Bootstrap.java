@@ -1,8 +1,13 @@
 package com.ctrlscript.csua;
 
 import android.app.Activity;
+import android.content.BroadcastReceiver;
+import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
+import android.os.Build;
 import android.os.Bundle;
+import android.os.FileObserver;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
@@ -10,7 +15,10 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.LinearLayout;
 
+import androidx.core.content.ContextCompat;
+
 import java.io.ByteArrayOutputStream;
+import java.io.File;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
@@ -42,6 +50,10 @@ public class Bootstrap extends Activity implements BridgeInterface {
     final Map<Integer, View> _views = new HashMap<>();
     private int _viewCounter = 0;
 
+    // Hot reload
+    private BroadcastReceiver _reloadReceiver;
+    private FileObserver       _hotWatcher;
+
     // ── Activity lifecycle ───────────────────────────────
 
     @Override
@@ -66,6 +78,8 @@ public class Bootstrap extends Activity implements BridgeInterface {
     @Override protected void onDestroy() {
         super.onDestroy();
         _fireLifecycle("_csuaAppDestroy");
+        if (_hotWatcher    != null) _hotWatcher.stopWatching();
+        if (_reloadReceiver != null) try { unregisterReceiver(_reloadReceiver); } catch (Exception ignored) {}
         QuickJS.destroy(_jsContext);
     }
 
@@ -191,6 +205,7 @@ public class Bootstrap extends Activity implements BridgeInterface {
                 String app  = _readAsset("app.js");
                 QuickJS.eval(_jsContext, csua, "csua.js");
                 QuickJS.eval(_jsContext, app,  "app.js");
+                _ui.post(this::_startHotReload);
             } catch (Exception e) {
                 Log.e(TAG, "JS startup failed", e);
                 _ui.post(() -> _showError(e.getMessage()));
@@ -222,6 +237,62 @@ public class Bootstrap extends Activity implements BridgeInterface {
 
     public void runOnJSThread(Runnable r) {
         new Thread(r, "csua-cb").start();
+    }
+
+    // ── Hot reload ───────────────────────────────────────
+    // Activated automatically after JS starts.
+    // Triggers: (1) adb push app.js /sdcard/csua/app.js  →  FileObserver
+    //           (2) adb shell am broadcast -a com.csua.RELOAD  →  BroadcastReceiver
+
+    private void _startHotReload() {
+        File hotDir = new File(android.os.Environment.getExternalStorageDirectory(), "csua");
+        hotDir.mkdirs();
+
+        // FileObserver — fires when ADB finishes pushing a file
+        _hotWatcher = _makeFileObserver(hotDir);
+        _hotWatcher.startWatching();
+
+        // BroadcastReceiver — explicit signal from CLI (or dev overlay "Reload JS" button)
+        _reloadReceiver = new BroadcastReceiver() {
+            @Override public void onReceive(Context ctx, Intent intent) { _reloadAppJS(); }
+        };
+        ContextCompat.registerReceiver(this, _reloadReceiver,
+            new IntentFilter("com.csua.RELOAD"), ContextCompat.RECEIVER_EXPORTED);
+
+        Log.d(TAG, "Hot reload active — watching /sdcard/csua/");
+    }
+
+    @SuppressWarnings("deprecation")
+    private FileObserver _makeFileObserver(File dir) {
+        if (Build.VERSION.SDK_INT >= 29) {
+            return new FileObserver(dir, FileObserver.CLOSE_WRITE | FileObserver.MOVED_TO) {
+                @Override public void onEvent(int event, String path) {
+                    if ("app.js".equals(path) || "csua.js".equals(path)) _reloadAppJS();
+                }
+            };
+        } else {
+            return new FileObserver(dir.getAbsolutePath(),
+                    FileObserver.CLOSE_WRITE | FileObserver.MOVED_TO) {
+                @Override public void onEvent(int event, String path) {
+                    if ("app.js".equals(path) || "csua.js".equals(path)) _reloadAppJS();
+                }
+            };
+        }
+    }
+
+    public void _reloadAppJS() {
+        runOnJSThread(() -> {
+            try {
+                String csua = _readAsset("csua.js");
+                String app  = _readAsset("app.js");
+                QuickJS.eval(_jsContext, csua, "csua.js");
+                QuickJS.eval(_jsContext, app,  "app.js");
+                Log.d(TAG, "Hot reload OK");
+            } catch (Exception e) {
+                Log.e(TAG, "Hot reload failed", e);
+                _ui.post(() -> _showError("Hot reload: " + e.getMessage()));
+            }
+        });
     }
 
     // ── Internals ────────────────────────────────────────
@@ -291,14 +362,7 @@ public class Bootstrap extends Activity implements BridgeInterface {
         reload.setPadding(16, 12, 16, 12);
         reload.setOnClickListener(x -> {
             _root.removeView(scroll);
-            runOnJSThread(() -> {
-                try {
-                    String app = _readAsset("app.js");
-                    QuickJS.eval(_jsContext, app, "app.js");
-                } catch (Exception e) {
-                    _ui.post(() -> _showError(e.getMessage()));
-                }
-            });
+            _reloadAppJS();
         });
         panel.addView(reload);
 

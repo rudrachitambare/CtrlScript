@@ -1,26 +1,22 @@
 // ── Your app goes here ───────────────────────────────
-// This is the only file you write.
-// Import anything from csua.js — same syntax as CSUI web.
+// This is the ONLY file you write.
+// No imports. Everything is global on both Android and browser.
+// Run on Android:  csua run
+// Run in browser:  <script src="csui.js"></script><script src="app.js"></script>
 
-import { Box, Label, Button, toast, device, loop } from './csua.js'
+new Box({ col: true, bg: '#0f0f1a', p: 16, centerX: true })
 
-const screen = new Box({ col: true, bg: '#0f0f1a', p: 16, centerX: true })
+new Label({ text: 'Hello from CtrlScript!', fs: 28, c: '#fff', bold: true, mb: 12 })
 
-new Label(screen, {
-    text: 'Hello from CSUA!',
-    fs: 28, color: '#fff', bold: true,
-    mb: 12,
-})
-
-const btn = new Button(screen, {
+new Button({
     text: 'Tap me',
-    bg: '#3b82f6', color: '#fff',
-    radius: 12, p: 14, w: '80%',
-    onClick: () => toast('Native Android toast!'),
+    bg: '#3b82f6', c: '#fff',
+    br: 12, p: 14, w: '80%',
+    onClick: () => dialog.alert('Works on Android and browser!'),
 })
 
 let ticks = 0
-const counter = new Label(screen, { text: 'Ticks: 0', color: '#94a3b8', fs: 16 })
+const counter = new Label({ text: 'Ticks: 0', c: '#94a3b8', fs: 16 })
 
 loop(() => {
     ticks++

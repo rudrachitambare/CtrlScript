@@ -12,9 +12,30 @@ if (configFile.exists()) {
     }
 }
 
+// ── Release signing (optional) ───────────────────────────────────────────────
+// Create keystore.properties next to this file to enable release signing:
+//   storeFile=../my-release.keystore
+//   storePassword=...
+//   keyAlias=...
+//   keyPassword=...
+def keystoreProps = new Properties()
+def keystoreFile  = rootProject.file('keystore.properties')
+if (keystoreFile.exists()) keystoreProps.load(keystoreFile.newDataInputStream())
+
 android {
     namespace         csuaConfig.get('package', 'com.csua.app')
     compileSdk        34
+
+    signingConfigs {
+        release {
+            if (keystoreFile.exists()) {
+                storeFile     file(keystoreProps['storeFile'])
+                storePassword keystoreProps['storePassword']
+                keyAlias      keystoreProps['keyAlias']
+                keyPassword   keystoreProps['keyPassword']
+            }
+        }
+    }
 
     defaultConfig {
         applicationId   csuaConfig.get('package',    'com.csua.app')
@@ -29,17 +50,20 @@ android {
     }
 
     buildTypes {
+        debug {
+            applicationIdSuffix '.debug'    // debug + release can coexist on device
+        }
         release {
-            minifyEnabled   false
-            signingConfig   signingConfigs.debug   // swap for release keystore when publishing
+            minifyEnabled false
+            signingConfig keystoreFile.exists() ? signingConfigs.release : signingConfigs.debug
         }
     }
 
     sourceSets {
         main {
-            jniLibs.srcDirs = ['../../jniLibs']    // pre-built QuickJS .so files
-            java.srcDirs    = ['src/main/java', '../../android']
-            assets.srcDirs  = ['src/main/assets']
+            // jniLibs default: src/main/jniLibs  (populated by GitHub Actions)
+            java.srcDirs   = ['src/main/java', '../../android']
+            assets.srcDirs = ['src/main/assets']
         }
     }
 

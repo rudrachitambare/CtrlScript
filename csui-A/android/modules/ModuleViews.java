@@ -28,6 +28,7 @@ public class ModuleViews implements CsuaModule {
             case "ShapeView":     return new ShapeView(ctx);
             case "SafeAreaView":  return new LinearLayout(ctx);  // insets handled via WindowInsets
             case "RecyclerView":  { RecyclerView rv = new RecyclerView(ctx); rv.setLayoutManager(new LinearLayoutManager(ctx)); return rv; }
+            case "SvgView":       return new SvgCanvasView(ctx);
             default:              return new LinearLayout(ctx);
         }
     }
@@ -158,6 +159,14 @@ public class ModuleViews implements CsuaModule {
                 View v = _ctx._views.get(id);
                 if (v != null && v.getParent() instanceof ViewGroup)
                     _ctx._ui.post(() -> ((ViewGroup)v.getParent()).removeView(v));
+                return null;
+            }
+            case "render": {
+                int id = _int(args[0]);
+                String json = args[1] != null ? args[1].toString() : "{}";
+                View v = _ctx._views.get(id);
+                if (v instanceof SvgCanvasView)
+                    _ctx._ui.post(() -> ((SvgCanvasView) v).setShapes(json));
                 return null;
             }
             case "getProp": {

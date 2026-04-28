@@ -3,8 +3,9 @@
 // Same syntax as CSUI (web), runs on real Android Views
 // via QuickJS + Java bridge (no WebView)
 //
-// Usage in app.js:
-//   import { Box, Label, Button, device, perm } from './csua.js'
+// Usage in app.js — no imports needed, everything is global:
+//   new Box("app", { bg: "#fff" })
+//   new Label("app", { text: "Hello" })
 // ──────────────────────────────────────────────────────
 
 'use strict';
@@ -114,7 +115,7 @@ const _styleMap = {
 
 let _idCounter = 0;
 
-export class BaseElement {
+class BaseElement {
     constructor(containerRef = null, viewType = 'LinearLayout') {
         this.id        = ++_idCounter;
         this._viewType = viewType;
@@ -196,7 +197,7 @@ const _namedContainers = {};
 // §6  VIEWS
 // ──────────────────────────────────────────────────────
 
-export class Box extends BaseElement {
+class Box extends BaseElement {
     constructor(containerRef = null, props = {}) {
         if (containerRef !== null && typeof containerRef === 'object' && !Array.isArray(containerRef)) {
             props = containerRef; containerRef = null;
@@ -213,7 +214,7 @@ export class Box extends BaseElement {
     }
 }
 
-export class ScrollBox extends BaseElement {
+class ScrollBox extends BaseElement {
     constructor(containerRef = null, props = {}) {
         super(containerRef, 'ScrollView');
         if (Object.keys(props).length) this.props = props;
@@ -221,7 +222,7 @@ export class ScrollBox extends BaseElement {
     }
 }
 
-export class Label extends BaseElement {
+class Label extends BaseElement {
     constructor(containerRef = null, props = {}) {
         super(containerRef, 'TextView');
         if (typeof props === 'string') { bridge.setProp(this._viewId, 'text', props); }
@@ -229,9 +230,9 @@ export class Label extends BaseElement {
         this._attach();
     }
 }
-export const Text = Label;
+const Text = Label;
 
-export class Button extends BaseElement {
+class Button extends BaseElement {
     constructor(containerRef = null, props = {}) {
         super(containerRef, 'Button');
         if (Object.keys(props).length) this.props = props;
@@ -239,7 +240,7 @@ export class Button extends BaseElement {
     }
 }
 
-export class Input extends BaseElement {
+class Input extends BaseElement {
     constructor(containerRef = null, props = {}) {
         super(containerRef, 'EditText');
         if (Object.keys(props).length) this.props = props;
@@ -250,9 +251,9 @@ export class Input extends BaseElement {
     focus()      { bridge.call('views', 'focus', this._viewId); return this; }
     blur()       { bridge.call('views', 'blur',  this._viewId); return this; }
 }
-export const TextArea = Input;
+const TextArea = Input;
 
-export class Image extends BaseElement {
+class Image extends BaseElement {
     constructor(containerRef = null, props = {}) {
         super(containerRef, 'ImageView');
         if (Object.keys(props).length) this.props = props;
@@ -261,7 +262,7 @@ export class Image extends BaseElement {
     set src(v) { bridge.setProp(this._viewId, 'src', String(v)); }
 }
 
-export class Canvas extends BaseElement {
+class Canvas extends BaseElement {
     constructor(containerRef = null, props = {}) {
         super(containerRef, 'CanvasView');
         if (Object.keys(props).length) this.props = props;
@@ -279,7 +280,7 @@ export class Canvas extends BaseElement {
     redraw() { bridge.call('canvas', 'invalidate', this._viewId); }
 }
 
-export class List extends BaseElement {
+class List extends BaseElement {
     constructor(containerRef = null, props = {}) {
         const { data = [], renderItem, keyExtractor, ...rest } = props;
         super(containerRef, 'RecyclerView');
@@ -297,7 +298,7 @@ export class List extends BaseElement {
 }
 
 // Shape aliases backed by CanvasView
-export class Rectangle extends BaseElement {
+class Rectangle extends BaseElement {
     constructor(containerRef = null, props = {}) {
         const { color = '#fff', radius = 0, ...rest } = props;
         super(containerRef, 'ShapeView');
@@ -308,9 +309,9 @@ export class Rectangle extends BaseElement {
         this._attach();
     }
 }
-export const Square = Rectangle;
+const Square = Rectangle;
 
-export class Circle extends BaseElement {
+class Circle extends BaseElement {
     constructor(containerRef = null, props = {}) {
         const { color = '#fff', ...rest } = props;
         super(containerRef, 'ShapeView');
@@ -321,7 +322,7 @@ export class Circle extends BaseElement {
     }
 }
 
-export class SafeArea extends BaseElement {
+class SafeArea extends BaseElement {
     constructor(containerRef = null, props = {}) {
         super(containerRef, 'SafeAreaView');
         if (Object.keys(props).length) this.props = props;
@@ -334,7 +335,7 @@ export class SafeArea extends BaseElement {
 // §7  LAYOUT HELPER
 // ──────────────────────────────────────────────────────
 
-export function group(containerRef, props = {}, ...children) {
+function group(containerRef, props = {}, ...children) {
     const box = new Box(containerRef, props);
     children.forEach(c => { if (c instanceof BaseElement) box.addChild(c); });
     return box;
@@ -355,7 +356,7 @@ function _tick() {
 }
 globalThis._csuaTick = _tick;
 
-export function loop(fn) {
+function loop(fn) {
     _loops.add(fn);
     if (!_loopRunning) {
         _loopRunning = true;
@@ -364,16 +365,16 @@ export function loop(fn) {
     return () => _loops.delete(fn);
 }
 
-export function stopLoop(fn) { _loops.delete(fn); }
+function stopLoop(fn) { _loops.delete(fn); }
 
 
 // ──────────────────────────────────────────────────────
 // §9  TIMERS
 // ──────────────────────────────────────────────────────
 
-export function after(ms, fn)  { return setTimeout(fn, ms); }
-export function every(ms, fn)  { return setInterval(fn, ms); }
-export function cancel(id)     { clearTimeout(id); clearInterval(id); }
+function after(ms, fn)  { return setTimeout(fn, ms); }
+function every(ms, fn)  { return setInterval(fn, ms); }
+function cancel(id)     { clearTimeout(id); clearInterval(id); }
 
 
 // ──────────────────────────────────────────────────────
@@ -383,20 +384,20 @@ export function cancel(id)     { clearTimeout(id); clearInterval(id); }
 //      files        →  File system
 // ──────────────────────────────────────────────────────
 
-export function save(key, value) {
+function save(key, value) {
     bridge.call('storage', 'set', key, JSON.stringify(value));
 }
 
-export function load(key, fallback = null) {
+function load(key, fallback = null) {
     const raw = bridge.call('storage', 'get', key);
     if (raw === null || raw === undefined) return fallback;
     try { return JSON.parse(raw); } catch { return raw; }
 }
 
-export function remove(key) { bridge.call('storage', 'remove', key); }
-export function clearAll()  { bridge.call('storage', 'clear'); }
+function remove(key) { bridge.call('storage', 'remove', key); }
+function clearAll()  { bridge.call('storage', 'clear'); }
 
-export const db = {
+const db = {
     run(sql, ...params) {
         return bridge.call('db', 'run', sql, JSON.stringify(params));
     },
@@ -411,7 +412,7 @@ export const db = {
     },
 };
 
-export const files = {
+const files = {
     read(path)         { return bridge.call('files', 'read',   path); },
     write(path, data)  { bridge.call('files', 'write',  path, data); },
     append(path, data) { bridge.call('files', 'append', path, data); },
@@ -430,7 +431,7 @@ export const files = {
 //      fetch() and WebSocket — bridged through Java OkHttp
 // ──────────────────────────────────────────────────────
 
-export function fetch(url, opts = {}) {
+function fetch(url, opts = {}) {
     return new Promise((resolve, reject) => {
         const cbId = `_csuaFetch_${++_idCounter}`;
         globalThis[cbId] = (err, status, headers, body) => {
@@ -448,7 +449,7 @@ export function fetch(url, opts = {}) {
     });
 }
 
-export class WebSocket {
+class WebSocket {
     constructor(url) {
         this._id      = ++_idCounter;
         this._onMsg   = null;
@@ -477,7 +478,7 @@ export class WebSocket {
 //      perm / permission / permissions  (all aliases)
 // ──────────────────────────────────────────────────────
 
-export const perm = {
+const perm = {
     request(perms) {
         const list = Array.isArray(perms) ? perms : [perms];
         return new Promise((resolve, reject) => {
@@ -495,8 +496,8 @@ export const perm = {
     },
     openSettings() { bridge.call('permissions', 'openSettings'); },
 };
-export const permission  = perm;
-export const permissions = perm;
+const permission  = perm;
+const permissions = perm;
 
 
 // ──────────────────────────────────────────────────────
@@ -526,7 +527,7 @@ function _watchBridge(module, method, fn, ...args) {
     };
 }
 
-export const device = {
+const device = {
     // ── Info ──
     get info() {
         const raw = bridge.call('device', 'info');
@@ -645,7 +646,7 @@ export const device = {
 // §14  AUDIO
 // ──────────────────────────────────────────────────────
 
-export class Sound {
+class Sound {
     constructor(src) {
         this._id = ++_idCounter;
         bridge.call('audio', 'load', this._id, src);
@@ -669,7 +670,7 @@ export class Sound {
 // §15  APP LIFECYCLE
 // ──────────────────────────────────────────────────────
 
-export const app = {
+const app = {
     onPause(fn)      { bridge.call('app', 'on', 'pause',      '_csuaAppPause');    globalThis._csuaAppPause    = fn; },
     onResume(fn)     { bridge.call('app', 'on', 'resume',     '_csuaAppResume');   globalThis._csuaAppResume   = fn; },
     onDestroy(fn)    { bridge.call('app', 'on', 'destroy',    '_csuaAppDestroy');  globalThis._csuaAppDestroy  = fn; },
@@ -691,7 +692,7 @@ const _screens  = {};
 let   _current  = null;
 let   _history  = [];
 
-export const router = {
+const router = {
     define(name, fn)       { _screens[name] = fn; },
     go(name, data = null)  {
         if (!_screens[name]) { console.error(`[csua] Screen "${name}" not defined`); return; }
@@ -709,15 +710,15 @@ export const router = {
     },
     get current() { return _current; },
 };
-export const scene = router.define.bind(router);
-export const go    = router.go.bind(router);
+const scene = router.define.bind(router);
+const go    = router.go.bind(router);
 
 
 // ──────────────────────────────────────────────────────
 // §17  KEYBOARD
 // ──────────────────────────────────────────────────────
 
-export const keyboard = {
+const keyboard = {
     hide()      { bridge.call('keyboard', 'hide'); },
     show(id)    { bridge.call('keyboard', 'show', id); },
     onShow(fn)  { globalThis._csuaKbShow = fn; bridge.call('keyboard', 'onShow', '_csuaKbShow'); },
@@ -729,14 +730,14 @@ export const keyboard = {
 // §18  SYSTEM UI  (status bar, nav bar)
 // ──────────────────────────────────────────────────────
 
-export const statusBar = {
+const statusBar = {
     color(v)        { bridge.call('systemui', 'statusBarColor', v); },
     style(v)        { bridge.call('systemui', 'statusBarStyle', v); }, // 'light'|'dark'
     hide()          { bridge.call('systemui', 'statusBarHide', 'true'); },
     show()          { bridge.call('systemui', 'statusBarHide', 'false'); },
 };
 
-export const navigationBar = {
+const navigationBar = {
     color(v)        { bridge.call('systemui', 'navBarColor', v); },
     hide()          { bridge.call('systemui', 'navBarHide', 'true'); },
     show()          { bridge.call('systemui', 'navBarHide', 'false'); },
@@ -747,18 +748,18 @@ export const navigationBar = {
 // §19  INTENTS  (open other apps / share)
 // ──────────────────────────────────────────────────────
 
-export function share(opts = {})     { bridge.call('intents', 'share',   JSON.stringify(opts)); }
-export function openUrl(url)         { bridge.call('intents', 'openUrl', url); }
-export function openApp(packageName) { bridge.call('intents', 'openApp', packageName); }
-export function openSettings()       { bridge.call('intents', 'openSettings'); }
-export function openMaps(opts = {})  { bridge.call('intents', 'openMaps', JSON.stringify(opts)); }
+function share(opts = {})     { bridge.call('intents', 'share',   JSON.stringify(opts)); }
+function openUrl(url)         { bridge.call('intents', 'openUrl', url); }
+function openApp(packageName) { bridge.call('intents', 'openApp', packageName); }
+function openSettings()       { bridge.call('intents', 'openSettings'); }
+function openMaps(opts = {})  { bridge.call('intents', 'openMaps', JSON.stringify(opts)); }
 
 
 // ──────────────────────────────────────────────────────
 // §20  NATIVE DIALOGS
 // ──────────────────────────────────────────────────────
 
-export const dialog = {
+const dialog = {
     alert(title, message)      { return _asyncBridge('dialog', 'alert',      title, message); },
     confirm(title, message)    { return _asyncBridge('dialog', 'confirm',    title, message); },
     prompt(title, hint = '')   { return _asyncBridge('dialog', 'prompt',     title, hint); },
@@ -774,7 +775,7 @@ export const dialog = {
 // §21  TOAST  (native Android toast — not a custom div)
 // ──────────────────────────────────────────────────────
 
-export function toast(message, { duration = 'short', gravity = 'bottom' } = {}) {
+function toast(message, { duration = 'short', gravity = 'bottom' } = {}) {
     bridge.call('dialog', 'toast', message, duration, gravity);
 }
 
@@ -783,7 +784,7 @@ export function toast(message, { duration = 'short', gravity = 'bottom' } = {}) 
 // §22  BACKGROUND TASKS
 // ──────────────────────────────────────────────────────
 
-export const background = {
+const background = {
     task(fn) {
         const cbId = `_csuaBg_${++_idCounter}`;
         globalThis[cbId] = fn;
@@ -819,7 +820,7 @@ function _loadMatter() {
     return _matterPromise;
 }
 
-export const engine2d = (() => {
+const engine2d = (() => {
     let _engine  = null;
     const _bodyMap = new Map(); // BaseElement -> Matter body
 
@@ -876,7 +877,7 @@ BaseElement.prototype.physics = function(opts = {}) {
 // §24  ANIMATIONS  (native Android property animations)
 // ──────────────────────────────────────────────────────
 
-export function animate(element, props = {}, { duration = 300, easing = 'ease', delay = 0 } = {}) {
+function animate(element, props = {}, { duration = 300, easing = 'ease', delay = 0 } = {}) {
     return new Promise(resolve => {
         const cbId = `_csuaAnim_${++_idCounter}`;
         globalThis[cbId] = () => { delete globalThis[cbId]; resolve(); };
@@ -889,21 +890,21 @@ export function animate(element, props = {}, { duration = 300, easing = 'ease', 
 // §24  INPUT EVENTS  (touch, gesture)
 // ──────────────────────────────────────────────────────
 
-export function onTouch(element, fn) {
+function onTouch(element, fn) {
     const cbId = `_csuaTouch_${element._viewId}`;
     globalThis[cbId] = data => fn(JSON.parse(data));
     bridge.call('events', 'onTouch', element._viewId, cbId);
     return () => { delete globalThis[cbId]; bridge.call('events', 'removeTouch', element._viewId, cbId); };
 }
 
-export function onSwipe(element, fn) {
+function onSwipe(element, fn) {
     const cbId = `_csuaSwipe_${element._viewId}`;
     globalThis[cbId] = data => fn(JSON.parse(data));
     bridge.call('events', 'onSwipe', element._viewId, cbId);
     return () => { delete globalThis[cbId]; bridge.call('events', 'removeSwipe', element._viewId, cbId); };
 }
 
-export function onPinch(element, fn) {
+function onPinch(element, fn) {
     const cbId = `_csuaPinch_${element._viewId}`;
     globalThis[cbId] = data => fn(JSON.parse(data));
     bridge.call('events', 'onPinch', element._viewId, cbId);
@@ -918,7 +919,7 @@ export function onPinch(element, fn) {
 
 const _plugins = new Map();
 
-export function use(plugin) {
+function use(plugin) {
     if (!plugin || typeof plugin.name !== 'string' || typeof plugin.install !== 'function') {
         console.error('[csua] use() expects { name: string, install(api) {} }');
         return;
@@ -940,7 +941,7 @@ export function use(plugin) {
 // §26  NAMESPACE EXPORT  (ctrlscript / CS)
 // ──────────────────────────────────────────────────────
 
-export const ctrlscript = {
+const ctrlscript = {
     // Views
     Box, ScrollBox, Label, Text, Button, Input, TextArea,
     Image, Canvas, List, Rectangle, Square, Circle, SafeArea,
@@ -974,41 +975,41 @@ export const ctrlscript = {
     use,
 };
 
-export const CS = ctrlscript;
+const CS = ctrlscript;
 
 // ── §27 — Browser Compatibility Layer ────────────────────────────────────────
 // Stubs so the same app.js runs in both csua (Android) and csui (browser).
 // Browser-only APIs are mapped to Android equivalents or logged as no-ops.
 
 // onKey — no physical keyboard on Android usually; stub gracefully
-export function onKey(key, fn, { up = false } = {}) {
+function onKey(key, fn, { up = false } = {}) {
     console.warn(`[csua] onKey('${key}') — no physical keyboard on Android.`);
 }
 
 // collides / checkOverlap — pure math, works on both
-export function collides(a, b) {
+function collides(a, b) {
     const ar = a.el ? a.el.getBoundingClientRect?.() : a;
     const br = b.el ? b.el.getBoundingClientRect?.() : b;
     if (!ar || !br) return false;
     return !(ar.right < br.left || ar.left > br.right ||
              ar.bottom < br.top || ar.top > br.bottom);
 }
-export const checkOverlap = collides;
+const checkOverlap = collides;
 
 // ask — maps to dialog.prompt
-export function ask(message, defaultVal = '') {
+function ask(message, defaultVal = '') {
     return dialog.prompt(message, defaultVal);
 }
 
 // camera (webcam alias) — maps to Android camera
-export const camera = {
+const camera = {
     snap(opts = {})   { return device.camera.snap(opts); },
     record(opts = {}) { return device.camera.record(opts); },
     pick(opts = {})   { return device.camera.pick(opts); },
 };
 
 // sound (lowercase object) — maps to Sound class
-export const sound = {
+const sound = {
     play(src, opts = {}) {
         const s = new Sound(src);
         if (opts.volume !== undefined) s.volume = opts.volume;
@@ -1020,7 +1021,7 @@ export const sound = {
 };
 
 // palette — same pure-math function as csui.js
-export function palette(baseColor, { name = 'color', shades = [50,100,200,300,400,500,600,700,800,900,950] } = {}) {
+function palette(baseColor, { name = 'color', shades = [50,100,200,300,400,500,600,700,800,900,950] } = {}) {
     function hexToRgb(h) {
         h = h.replace('#','');
         if (h.length === 3) h = h.split('').map(c=>c+c).join('');
@@ -1053,7 +1054,7 @@ export function palette(baseColor, { name = 'color', shades = [50,100,200,300,40
 }
 
 // UI components — native Android equivalents via dialog/views
-export class DropdownMenu extends BaseElement {
+class DropdownMenu extends BaseElement {
     constructor(ref, props = {}) {
         super(ref, 'Spinner');
         const { items = [], onSelect } = props;
@@ -1063,7 +1064,7 @@ export class DropdownMenu extends BaseElement {
         this._attach();
     }
 }
-export class Modal extends BaseElement {
+class Modal extends BaseElement {
     constructor(ref, props = {}) {
         super(ref, 'LinearLayout');
         const { title = '', content = '', onClose } = props;
@@ -1072,7 +1073,7 @@ export class Modal extends BaseElement {
     open()  {}
     close() {}
 }
-export class Tabs extends BaseElement {
+class Tabs extends BaseElement {
     constructor(ref, props = {}) {
         super(ref, 'TabLayout');
         (props.tabs || []).forEach(t => bridge.call('views', 'addTab', String(this._viewId), t.label || t));
@@ -1080,7 +1081,7 @@ export class Tabs extends BaseElement {
         if (Object.keys(props).length) this.props = props;
     }
 }
-export class Slider extends BaseElement {
+class Slider extends BaseElement {
     constructor(ref, props = {}) {
         super(ref, 'SeekBar');
         if (props.min !== undefined)   bridge.setProp(this._viewId, 'min',      props.min);
@@ -1092,7 +1093,7 @@ export class Slider extends BaseElement {
     get value()  { return bridge.call('views', 'getProp', String(this._viewId), 'progress'); }
     set value(v) { bridge.setProp(this._viewId, 'progress', v); }
 }
-export class ProgressBar extends BaseElement {
+class ProgressBar extends BaseElement {
     constructor(ref, props = {}) {
         super(ref, 'ProgressBar');
         if (props.value !== undefined) bridge.setProp(this._viewId, 'progress', props.value);
@@ -1102,7 +1103,7 @@ export class ProgressBar extends BaseElement {
     get value()  { return bridge.call('views', 'getProp', String(this._viewId), 'progress'); }
     set value(v) { bridge.setProp(this._viewId, 'progress', v); }
 }
-export class Toggle extends BaseElement {
+class Toggle extends BaseElement {
     constructor(ref, props = {}) {
         super(ref, 'Switch');
         if (props.checked !== undefined) bridge.setProp(this._viewId, 'checked', props.checked);
@@ -1112,7 +1113,7 @@ export class Toggle extends BaseElement {
     get checked()  { return bridge.call('views', 'getProp', String(this._viewId), 'checked'); }
     set checked(v) { bridge.setProp(this._viewId, 'checked', v); }
 }
-export class Accordion extends BaseElement {
+class Accordion extends BaseElement {
     constructor(ref, props = {}) {
         super(ref, 'LinearLayout');
         (props.items || []).forEach(item => {
@@ -1124,7 +1125,7 @@ export class Accordion extends BaseElement {
         this._attach();
     }
 }
-export class Drawer extends BaseElement {
+class Drawer extends BaseElement {
     constructor(ref, props = {}) {
         super(ref, 'DrawerLayout');
         this._attach();
@@ -1133,14 +1134,14 @@ export class Drawer extends BaseElement {
     open()  { bridge.call('views', 'openDrawer',  String(this._viewId)); }
     close() { bridge.call('views', 'closeDrawer', String(this._viewId)); }
 }
-export class Chip extends BaseElement {
+class Chip extends BaseElement {
     constructor(ref, props = {}) {
         super(ref, 'Chip');
         if (props.text) bridge.setProp(this._viewId, 'text', props.text);
         this._attach();
     }
 }
-export class Card extends BaseElement {
+class Card extends BaseElement {
     constructor(ref, props = {}) {
         super(ref, 'CardView');
         if (props.title)   bridge.setProp(this._viewId, 'title',   props.title);
@@ -1149,11 +1150,99 @@ export class Card extends BaseElement {
     }
 }
 
+// ──────────────────────────────────────────────────────
+// §SVG — Vector Graphics (Android)
+//   Svg is a BaseElement backed by a native SvgCanvasView (Canvas, no WebView).
+//   Shapes are plain JS objects; render() sends JSON to Java for Canvas drawing.
+//   Auto-scheduled via microtask — batches rapid .set() calls into one render.
+//   API is identical to csui.js (browser).
+// ──────────────────────────────────────────────────────
+
+class _SvgShape {
+    constructor(parent, type, attrs) {
+        this._type  = type;
+        this._attrs = Object.assign({}, attrs);
+        this._svg   = parent instanceof Svg ? parent : parent._svg;
+        parent._addShape(this);
+    }
+    set(attrs) { Object.assign(this._attrs, attrs); this._svg._schedule(); return this; }
+    remove()   { this._svg._shapes = this._svg._shapes.filter(s => s !== this); this._svg._schedule(); }
+    _toJson()  { return Object.assign({ type: this._type }, this._attrs); }
+}
+
+class SvgGroup {
+    constructor(parent, attrs = {}) {
+        this._attrs  = Object.assign({}, attrs);
+        this._shapes = [];
+        this._svg    = parent instanceof Svg ? parent : parent._svg;
+        parent._addShape(this);
+    }
+    _addShape(s) { this._shapes.push(s); this._svg._schedule(); }
+    set(attrs)   { Object.assign(this._attrs, attrs); this._svg._schedule(); return this; }
+    _toJson() {
+        return Object.assign({ type: 'g', children: this._shapes.map(s => s._toJson()) }, this._attrs);
+    }
+}
+
+class Svg extends BaseElement {
+    constructor(containerRef = null, props = {}) {
+        if (containerRef !== null && typeof containerRef === 'object' && !Array.isArray(containerRef)) {
+            props = containerRef; containerRef = null;
+        }
+        const { w = 300, h = 200, bg = 'transparent', ...rest } = props;
+        super(containerRef, 'SvgView');
+        this._shapes  = [];
+        this._svgW    = w;
+        this._svgH    = h;
+        this._svgBg   = bg;
+        this._pending = false;
+        bridge.setProp(this._viewId, 'width',  _dp(w));
+        bridge.setProp(this._viewId, 'height', _dp(h));
+        if (Object.keys(rest).length) this.props = rest;
+        this._attach();
+        this.render();
+    }
+    _addShape(s) { this._shapes.push(s); this._schedule(); }
+    _schedule() {
+        if (this._pending) return;
+        this._pending = true;
+        Promise.resolve().then(() => { this._pending = false; this.render(); });
+    }
+    render() {
+        const json = JSON.stringify({
+            shapes: this._shapes.map(s => s._toJson()),
+            bg: this._svgBg,
+            w:  this._svgW,
+            h:  this._svgH,
+        });
+        bridge.call('views', 'render', this._viewId, json);
+    }
+    clear() { this._shapes = []; this.render(); }
+}
+
+class SvgRect     extends _SvgShape { constructor(p, a = {}) { super(p, 'rect',     a); } }
+class SvgCircle   extends _SvgShape { constructor(p, a = {}) { super(p, 'circle',   a); } }
+class SvgEllipse  extends _SvgShape { constructor(p, a = {}) { super(p, 'ellipse',  a); } }
+class SvgLine     extends _SvgShape { constructor(p, a = {}) { super(p, 'line',     a); } }
+class SvgPath     extends _SvgShape { constructor(p, a = {}) { super(p, 'path',     a); } }
+class SvgPolygon  extends _SvgShape { constructor(p, a = {}) { super(p, 'polygon',  a); } }
+class SvgPolyline extends _SvgShape { constructor(p, a = {}) { super(p, 'polyline', a); } }
+class SvgText     extends _SvgShape { constructor(p, a = {}) { super(p, 'text',     a); } }
+
+
 // Update ctrlscript namespace
 Object.assign(ctrlscript, {
     onKey, collides, checkOverlap, ask, camera, sound, palette,
     DropdownMenu, Modal, Tabs, Slider, ProgressBar, Toggle,
     Accordion, Drawer, Chip, Card,
     engine2d,
+    Svg, SvgGroup,
+    SvgRect, SvgCircle, SvgEllipse, SvgLine,
+    SvgPath, SvgPolygon, SvgPolyline, SvgText,
 });
 use.bind && (ctrlscript.use = use);
+
+// ── Expose everything as globals so app.js needs zero imports ──
+Object.assign(globalThis, ctrlscript);
+globalThis.ctrlscript = ctrlscript;
+globalThis.CS = ctrlscript;

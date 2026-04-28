@@ -3060,6 +3060,9 @@ export const ctrlscript = {
     // ── Utils ──
     remove, clearContainers, getContainer, listContainers, checkOverlap,
 
+    // ── SVG ──
+    // (classes added via Object.assign below, after they are defined)
+
     // ── Dev ──
     csui,
 };
@@ -3302,6 +3305,79 @@ export function onPinch(element, fn) {
     }, { passive: true });
 }
 
+// ──────────────────────────────────────────────────────
+// §SVG — Vector Graphics (browser)
+//   Svg is a BaseElement wrapping a native <svg> element.
+//   SvgShape / SvgGroup are thin DOM wrappers — NOT BaseElements.
+//   Changes are live (no render() needed).
+//   API is identical to csua.js (Android).
+// ──────────────────────────────────────────────────────
+
+const _SVG_NS = 'http://www.w3.org/2000/svg';
+
+function _svgAttr(k) { return k.replace(/([A-Z])/g, m => '-' + m.toLowerCase()); }
+
+class _SvgShapeBase {
+    constructor(parent, tag, attrs = {}) {
+        this.el = document.createElementNS(_SVG_NS, tag);
+        const { text, ...rest } = attrs;
+        for (const [k, v] of Object.entries(rest))
+            if (v != null) this.el.setAttribute(_svgAttr(k), String(v));
+        if (text !== undefined) this.el.textContent = text;
+        (parent.el || parent).appendChild(this.el);
+    }
+    set(attrs) {
+        const { text, ...rest } = attrs;
+        for (const [k, v] of Object.entries(rest))
+            if (v != null) this.el.setAttribute(_svgAttr(k), String(v));
+        if (text !== undefined) this.el.textContent = text;
+        return this;
+    }
+    remove() { this.el.parentNode?.removeChild(this.el); }
+}
+
+export class SvgGroup {
+    constructor(parent, attrs = {}) {
+        this.el = document.createElementNS(_SVG_NS, 'g');
+        for (const [k, v] of Object.entries(attrs))
+            if (v != null) this.el.setAttribute(_svgAttr(k), String(v));
+        (parent.el || parent).appendChild(this.el);
+    }
+    set(attrs) {
+        for (const [k, v] of Object.entries(attrs))
+            if (v != null) this.el.setAttribute(_svgAttr(k), String(v));
+        return this;
+    }
+}
+
+export class Svg extends BaseElement {
+    constructor(containerIndex = null, props = {}) {
+        super(containerIndex);
+        const { w = 300, h = 200, bg, viewBox, ...rest } = props;
+        this.el = document.createElementNS(_SVG_NS, 'svg');
+        this.el.setAttribute('xmlns', _SVG_NS);
+        this.el.setAttribute('width',  typeof w === 'number' ? w + 'px' : w);
+        this.el.setAttribute('height', typeof h === 'number' ? h + 'px' : h);
+        this.el.setAttribute('viewBox', viewBox || `0 0 ${+w || w} ${+h || h}`);
+        if (bg) this.el.style.background = bg;
+        this.el.style.display = 'block';
+        this._attachToContainer();
+        if (Object.keys(rest).length) this.props = rest;
+    }
+    render() {}  // live DOM — no-op, exists for API compatibility with csua.js
+    clear()  { while (this.el.firstChild) this.el.removeChild(this.el.firstChild); }
+}
+
+export class SvgRect     extends _SvgShapeBase { constructor(p, a = {}) { super(p, 'rect',     a); } }
+export class SvgCircle   extends _SvgShapeBase { constructor(p, a = {}) { super(p, 'circle',   a); } }
+export class SvgEllipse  extends _SvgShapeBase { constructor(p, a = {}) { super(p, 'ellipse',  a); } }
+export class SvgLine     extends _SvgShapeBase { constructor(p, a = {}) { super(p, 'line',     a); } }
+export class SvgPath     extends _SvgShapeBase { constructor(p, a = {}) { super(p, 'path',     a); } }
+export class SvgPolygon  extends _SvgShapeBase { constructor(p, a = {}) { super(p, 'polygon',  a); } }
+export class SvgPolyline extends _SvgShapeBase { constructor(p, a = {}) { super(p, 'polyline', a); } }
+export class SvgText     extends _SvgShapeBase { constructor(p, a = {}) { super(p, 'text',     a); } }
+
+
 // Extend ctrlscript namespace with new exports
 Object.assign(ctrlscript, {
     ScrollBox, TextArea, Rectangle, Square, Circle, SafeArea, List,
@@ -3310,5 +3386,15 @@ Object.assign(ctrlscript, {
     app, keyboard, statusBar, navigationBar,
     share, openUrl, openApp, openSettings, openMaps,
     dialog, background, animate, onTouch, onSwipe, onPinch,
+    Svg, SvgGroup,
+    SvgRect, SvgCircle, SvgEllipse, SvgLine,
+    SvgPath, SvgPolygon, SvgPolyline, SvgText,
 });
 
+// ── Expose everything as globals so app.js needs zero imports ──
+// Works whether csui.js is loaded as <script type="module"> or plain <script>.
+if (typeof globalThis !== 'undefined') {
+    Object.assign(globalThis, ctrlscript);
+    globalThis.ctrlscript = ctrlscript;
+    globalThis.CS = ctrlscript;
+}
