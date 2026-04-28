@@ -177,7 +177,7 @@ Planned modules: Camera, Bluetooth, NFC, Sensors, Biometric, Intents, Notificati
 | Docs site | 🟢 |
 | Playground/Web IDE for dev | 🟢 UI overhaul underway |
 | Interactive playground | 🔨 In progress |
-
+> The web CSUI is made from purely javascript. Other languages are for csui-a (Android)
 ---
 
 ## Where to try or learn CtrlScript
