@@ -3112,7 +3112,7 @@ const _promise = (api, val = null) => { _warn(api); return Promise.resolve(val);
 export class ScrollBox extends Box {
     constructor(ref, props = {}) { super(ref, { overflow: 'auto', ...props }); }
 }
-export class TextArea extends Input {
+class _CompatTextArea extends Input {
     constructor(ref, props = {}) {
         super(ref, props);
         const ta = document.createElement('textarea');
@@ -3124,11 +3124,11 @@ export class TextArea extends Input {
     get text()    { return this.el.value; }
     set text(v)   { this.el.value = v; }
 }
-export class Rectangle extends Box {
+class _CompatRectangle extends Box {
     constructor(ref, props = {}) { super(ref, props); }
 }
-export const Square = Rectangle;
-export class Circle extends Box {
+const _CompatSquare = _CompatRectangle;
+class _CompatCircle extends Box {
     constructor(ref, props = {}) { super(ref, { br: '50%', ...props }); }
 }
 export class SafeArea extends Box {
@@ -3138,7 +3138,7 @@ export class SafeArea extends Box {
         this.el.style.paddingBottom = 'env(safe-area-inset-bottom, 0px)';
     }
 }
-export class List extends Box {
+class _CompatList extends Box {
     constructor(ref, props = {}) { super(ref, props); }
     setItems(items, renderFn) {
         this.el.innerHTML = '';
@@ -3380,7 +3380,7 @@ export class SvgText     extends _SvgShapeBase { constructor(p, a = {}) { super(
 
 // Extend ctrlscript namespace with new exports
 Object.assign(ctrlscript, {
-    ScrollBox, TextArea, Rectangle, Square, Circle, SafeArea, List,
+    ScrollBox, TextArea: _CompatTextArea, Rectangle: _CompatRectangle, Square: _CompatSquare, Circle: _CompatCircle, SafeArea, List: _CompatList,
     stopLoop, cancel, clearAll, db, files,
     perm, permission, permissions, Sound,
     app, keyboard, statusBar, navigationBar,
