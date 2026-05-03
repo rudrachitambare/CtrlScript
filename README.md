@@ -62,21 +62,23 @@ Same result. A fraction of the code. And it only gets better from here.
 
 ## What's inside
 
-All of this ships in a single file:
+Everything ships in a single file — no installs, no imports from CDN unless you opt in.
 
-- **UI components** — Modal, Tabs, Drawer, Toast, Accordion, Card, Chip, Slider, ProgressBar, Toggle, Dropdown
-- **Game system** — delta-time loop, scene manager, camera, keyboard input, AABB collision
-- **Physics** — Matter.js, lazy-loaded from CDN, one line to enable
-- **Animations** — `fadeIn`, `slideUp`, `animate()`, full chaining API
-- **Particles** — CSS-based burst effects, no canvas needed
-- **Sound** — load, play, stop, loop, volume
-- **Router** — URL-based, `define()` and `go()`
-- **Device APIs** — geolocation, vibration, gyro, clipboard, notifications
-- **Storage** — `save()` / `load()` backed by localStorage
-- **Glassmorphism** — `.glass()` / `.glass({ pro: true })`
-- **Tooltips, badges, context menus** — one method call on any element
-- **Color palette generator** — generate full shade palettes from any color
-- **Plugin system** — extend any element or add global utilities
+**UI**
+- Components — Modal, Tabs, Drawer, Toast, Accordion, Card, Chip, Slider, ProgressBar, Toggle, Dropdown
+- Styling — full chaining API, shorthand props, glassmorphism, animations, tooltips, badges, context menus
+- Color — palette generator, `bgRGB()`, `bgHSL()`
+
+**Game**
+- Delta-time loop, scene manager, camera, keyboard input, AABB collision
+- CSS-based particle bursts — no canvas needed
+- Matter.js physics — lazy-loaded, one line to enable
+
+**App**
+- Router — URL-based, `define()` and `go()`
+- Storage — `save()` / `load()` via localStorage
+- Device APIs — geolocation, vibration, gyro, clipboard, notifications
+- Plugin system — extend any element or add global utilities
 
 ---
 
@@ -92,7 +94,7 @@ new Box(app)
   .center()
   .glass({ pro: true, blur: 16 })
   .tooltip('Hello', { pos: 'top' })
-  .highlight()
+// → a centered frosted-glass card, centered in the viewport
 ```
 
 ---
@@ -140,53 +142,30 @@ No terminal. No `node_modules`. Works offline. Works on low-end devices.
 
 ## csui-A — Android Runtime
 
-> 🚧 Early work in progress
+> 🚧 Work in progress
 
-`csui-A` is CtrlScript's Android runtime, living right here in the same repo. It runs your JS natively on Android using **QuickJS + JNI** -> no WebView, no Electron, no Capacitor.
+`csui-A` is CtrlScript's Android runtime. It runs your JS natively on Android using **QuickJS + JNI** — no WebView, no Electron, no Capacitor.
 
-The goal: **write once, run on browser and Android natively.** Same API, same syntax, same codebase.
+The goal: **write once, run on browser and Android natively.** Same API, same syntax, same file.
 
 ```js
-// This runs identically on both web and Android
+// runs identically on web and Android
 import { App, Box, Text, device } from './csui.js' // or csua.js on Android
 
 const app = new App()
 new Text(app, { text: 'Hello from anywhere', fs: 24 })
 
-device.vibrate(200)           // → navigator.vibrate() on web
-                              // → Android Vibrator API on Android
+device.vibrate(200)        // → navigator.vibrate() on web
+                           // → Android Vibrator API on Android
 
-statusBar.color('#1a1a2e')    // → no-op on web (graceful)
-                              // → native status bar on Android
+statusBar.color('#1a1a2e') // → graceful no-op on web
+                           // → native status bar tint on Android
 ```
 
-When you call a platform-specific API, CtrlScript automatically bridges it to the right implementation. On web, Android-only calls gracefully no-op or fall back to a browser equivalent. No `if (platform === 'android')` checks. No separate codebases.
+Platform-specific APIs automatically bridge to the right implementation. On web, Android-only calls gracefully no-op or fall back to a browser equivalent — no `if (platform === 'android')` checks, no separate codebases.
 
-**csui-A stack:** QuickJS (JS engine) → JNI bridge → Android Canvas / Views / native modules
+**Stack:** QuickJS (JS engine) → JNI bridge → Android Canvas / Views / native APIs
 
-Planned modules: Camera, Bluetooth, NFC, Sensors, Biometric, Intents, Notifications, and more.
-
----
-
-## Status
-
-| | |
-|---|---|
-| csui (web) | 🟢 Core solid, actively evolving |
-| csui-A (Android) | 🟡 Early WIP, architecture in place |
-| Docs site | 🟢 |
-| Playground/Web IDE for dev | 🟢 UI overhaul underway |
-| Interactive playground | 🔨 In progress |
-> The web CSUI is made from purely javascript. Other languages are for csui-a (Android)
----
-
-## Where to try or learn CtrlScript
-
-On my website -> which is not published as of now
-
-RRudra.dev/ctrlscript/
-
-(please dont steal the name rudra.dev was taken)
 ---
 
 > Built by a developer who wanted full control without the overhead.  
