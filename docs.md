@@ -1,170 +1,240 @@
-# CtrlScript (CSUI) — Documentation
-> Single-file DOM framework. NativeScript-inspired, chainable, game-ready.
+# CSUI — Documentation
+
+A single-file DOM framework for building UIs in the browser (and Android via csua). No build step. No dependencies. Just drop in `csui.js` and go.
 
 ---
 
-## Import
+## Quick Start
+
+```html
+<script type="module">
+  import { Box, Text, Button } from './csui.js'
+
+  const app = new Box({ bg: '#111', p: 24 })
+  new Text(app, { text: 'Hello!', c: '#fff', fs: 32 })
+  new Button(app, { text: 'Click me' }).click(() => alert('Hi'))
+</script>
+```
+
+Or grab everything from the namespace:
 
 ```js
-// Named imports (recommended, tree-shakeable)
-import { Box, App, Text, loop, save, sound } from './csui.js'
+import { ctrlscript as CS } from './csui.js'
+const { Box, Text, Button, loop, save } = CS
+```
 
-// Single namespace (easiest for beginners)
-import { ctrlscript } from './csui.js'
-const { Box, App, Text, loop } = ctrlscript
+Everything is also exposed as globals, so scripts loaded after `csui.js` need zero imports.
 
-// Short alias
-import { CS } from './csui.js'
+---
 
-// Optional heavy modules
-import { engine2d, sound, particles } from './csui.js'
+## Containers & Attachment
+
+Every element takes an optional first argument: a **container reference**.
+
+```js
+const root = new Box()                     // no parent → root element
+const card = new Box(root)                 // attach to Box instance
+const item = new Text(root, { text: 'Hi' })
+
+// Named containers (recommended for larger apps)
+const nav = new Box('nav')                 // registers as "nav"
+new Button('nav', { text: 'Home' })        // attaches to it by name
+```
+
+If exactly one container exists, elements without a ref attach to it automatically.
+
+---
+
+## Style Props
+
+All elements accept a props object. Shorthands map directly to CSS:
+
+| Prop | CSS | Prop | CSS |
+|------|-----|------|-----|
+| `bg` | backgroundColor | `c` | color |
+| `fs` | fontSize | `fw` | fontWeight |
+| `w` | width | `h` | height |
+| `p` | padding | `m` | margin |
+| `mt` `mb` `ml` `mr` | margin edges | `pt` `pb` `pl` `pr` | padding edges |
+| `br` | borderRadius | `bs` | boxShadow |
+| `d` | display | `fd` | flexDirection |
+| `jc` | justifyContent | `ai` | alignItems |
+| `ta` | textAlign | `ff` | fontFamily |
+| `lh` | lineHeight | `gap` | gap |
+| `z` | zIndex | `o` | opacity |
+| `cur` | cursor | `pos` | position |
+
+Numbers auto-convert to `px`. Strings pass through as-is.
+
+```js
+new Box(root, { bg: '#1a1a2e', p: 24, br: 12, w: '100%' })
+```
+
+**Special props:**
+
+```js
+{ text: 'hello' }           // sets textContent
+{ html: '<b>bold</b>' }     // sets innerHTML
+{ src: './img.png' }        // sets src
+{ href: 'https://...' }     // sets href
+{ rotation: 45 }            // CSS rotate transform
+{ size: 80 }                // sets width + height together
+{ name: 'my-box' }          // sets id + data-name (debug label)
+{ fullPage: true }          // width: 100%, minHeight: 100vh
+{ pos: { x: 10, y: 20 } }  // position: absolute + left/top
+{ children: [a, b, c] }    // appends child elements
+{ onClick: fn }             // addEventListener('click', fn)
+{ onMouseenter: fn }        // any on* key → addEventListener
 ```
 
 ---
 
-## Core Elements
+## Elements
 
-Elements take `(containerIndexOrName, props)`. Pass `null` if not using containers.
-**Recommended:** Use descriptive string names for containers instead of numbers.
+### Core
+
+| Class | HTML | Notes |
+|-------|------|-------|
+| `Box` | `<div>` | Main container. Aliases: `Container`, `Div` |
+| `App` | `<div#app>` | Mounts to body, resets margin/padding |
+| `Text` / `Label` | `<span>` | `.text` getter/setter |
+| `Button` | `<button>` | `.text`, `.click(fn)` |
+| `Input` | `<input>` | `.value`, `.placeholder`, `.type` |
+| `TextArea` | `<textarea>` | `.value`, `.placeholder` |
+
+### Content
+
+| Class | HTML |
+|-------|------|
+| `Heading` | `<h1>`–`<h6>` — `new Heading(2, ref, props)` |
+| `Paragraph` | `<p>` |
+| `Link` | `<a>` — `.href`, `.target`, `.text` |
+| `Span` | `<span>` |
+| `Code` | `<code>` |
+| `CodeBlock` | `<pre><code>` — styled dark block, `.text` setter |
+| `Pre` | `<pre>` |
+
+### Layout
+
+| Class | HTML |
+|-------|------|
+| `Section` | `<section>` |
+| `Article` | `<article>` |
+| `Header` | `<header>` |
+| `Footer` | `<footer>` |
+| `Nav` | `<nav>` |
+| `Form` | `<div>` |
+| `HR` | `<hr>` |
+| `BR` | `<br>` |
+
+### Lists & Tables
 
 ```js
-new App()                        // root app div → appends to document.body
+const ul = new List(ref)              // unordered (default)
+const ol = new List(true, ref)        // ordered
+new ListItem(ul, { text: 'Item' })
 
-// Containers (they register themselves)
-new Box("home", { bg: "#111" })  // named lookup
-new Box(1, { bg: "#111" })       // legacy numeric index
-
-// Children (attaching to named container)
-new Text("home", { text: "Hello" })   
-new Label("home", { text: "Hello" })  // alias of Text
-new Button("home", { text: "Click" })
-new Input("home", { placeholder: "Name" })
-new Image("home", { src: "img.png", w: 200 })
-new Heading(2, "home", { text: "Title" })  // level, container, props
-new Paragraph("home", { text: "..." })
-new Link("home", { text: "Go", href: "/page" })
-new Canvas("home", { w: 400, h: 300 })
-
-// Shapes
-new Rectangle("home", { w: 120, h: 80, bg: "blue" })
-new Square("home", { size: 80, bg: "red" })
-new Circle("home", { size: 60, bg: "green" })
-new Ellipse("home")
-new Line("home", { w: 200, bg: "#000" })
+const t   = new Table(ref)
+const row = new TableRow(t)
+new TableCell(row, { text: 'Cell' })
+new TableCell(true, row, { text: 'Header' })  // isHeader: true
 ```
 
----
+### Form Controls
 
-## Props Shorthand
+```js
+const sel = new Select(ref)
+sel.addOption('val', 'Label')
+sel.value   // current value
 
-Pass props in the constructor or call `.set({})`:
+new Checkbox(ref, { checked: true })
+new Radio(ref, { name: 'group' })
+```
 
-| Prop | CSS |
-|------|-----|
-| `bg` | `backgroundColor` |
-| `c` | `color` |
-| `w`, `h` | `width`, `height` |
-| `p`, `m` | `padding`, `margin` |
-| `mt`, `mb`, `ml`, `mr` | margin sides |
-| `pt`, `pb`, `pl`, `pr` | padding sides |
-| `br` | `borderRadius` |
-| `o` | `opacity` |
-| `z` | `zIndex` |
-| `fs`, `fw`, `ff` | font size/weight/family |
-| `ta` | `textAlign` |
-| `d` | `display` |
-| `bs` | `boxShadow` |
-| `pos`, `position` | `position` |
-| `name` | sets `id` + `data-name` for debugging |
+### Media
+
+```js
+new Image(ref, { src: './photo.jpg', size: 200 })
+new Video(ref, { src: './clip.mp4', controls: true })
+new Audio(ref, { src: './track.mp3' })
+new Iframe(ref, { src: 'https://example.com', w: 600, h: 400 })
+new Canvas(ref, { w: 800, h: 600 })
+```
+
+### Shapes
+
+```js
+new Rectangle(ref, { w: 120, h: 80, bg: '#e74c3c' })
+new Square(ref, { size: 60, bg: '#3b82f6' })
+new Circle(ref, { size: 60, bg: '#22c55e' })
+new Ellipse(ref, { w: 140, h: 90, bg: '#a855f7' })
+new Line(ref, { w: 200, bg: '#fff' })
+line.thickness = 3
+```
 
 ---
 
 ## Chaining API
 
-Every style shorthand is also a chainable method:
+All elements support a fluent chaining API:
 
 ```js
-box.bg("red").p(10).w(200).h(100).br(8).o(0.9)
-box.c("#fff").fs(16).fw("bold").ff("monospace")
-box.m(20).mt(10).mx(16).my(8)
-box.bs("0 4px 12px rgba(0,0,0,0.3)")
+new Box(root)
+  .bg('#111').p(24).br(12).w('100%')
+  .row()
+
+new Text(root)
+  .c('#fff').fs(18).fw(700).ta('center').mx('auto')
+```
+
+| Method | CSS | Method | CSS |
+|--------|-----|--------|-----|
+| `.bg(v)` | backgroundColor | `.c(v)` | color |
+| `.w(v)` | width | `.h(v)` | height |
+| `.p(v)` | padding | `.m(v)` | margin |
+| `.mt/mb/ml/mr(v)` | margin edges | `.pt/pb/pl/pr(v)` | padding edges |
+| `.mx(v)` | left+right margin | `.my(v)` | top+bottom margin |
+| `.px(v)` | left+right padding | `.py(v)` | top+bottom padding |
+| `.br(v)` | borderRadius | `.bs(v)` | boxShadow |
+| `.fs(v)` | fontSize | `.fw(v)` | fontWeight |
+| `.ff(v)` | fontFamily | `.ta(v)` | textAlign |
+| `.d(v)` | display | `.o(v)` | opacity |
+| `.z(v)` | zIndex | `.cur(v)` | cursor |
+| `.x(v)` | left (absolute) | `.y(v)` | top (absolute) |
+| `.bgRGB(r,g,b)` | rgb() color | `.bgHSL(h,s,l)` | hsl() color |
+| `.center()` | absolute center in parent | `.highlight(color)` | debug outline |
+
+---
+
+## Lifecycle
+
+```js
+const box = new Box(root)
+
+box.onMount(() => console.log('in the DOM'))
+box.onDestroy(() => console.log('being removed'))
+box.destroy()   // fires onDestroy, removes from DOM
 ```
 
 ---
 
-## Positioning
+## Layout
+
+### Box methods
 
 ```js
-box.x(100)          // left: 100px (sets position:absolute)
-box.x()             // read current x (returns number)
-box.y(200)          // top: 200px
-box.center()        // absolute center in parent (translate -50% -50%)
-box.mx(20).mt(10)   // margin helpers
+box.row(a, b, c)   // flex row, optionally appends children
+box.col(a, b, c)   // flex column, optionally appends children
+box.move(x, y)     // translate(x, y)
 ```
 
----
+### group()
 
-## Color Helpers
-
-```js
-box.bg("#ff0000")
-box.bgRGB(255, 0, 0)
-box.bgHSL(120, 100, 50)
-box.c("white")
-```
-
----
-
-## Layout (Box methods)
+Creates a `position: relative` wrapper — useful for layering:
 
 ```js
-// Flex row — optionally pass children
-new Box("header").row(labelA, labelB, btn)
-
-// Flex column
-new Box("form").col(input, button).gap(8).p(12)
-
-// Just set direction (no children yet)
-const nav = new Box("nav").row().bg("#111").p(10)
-nav.addChild(logo)
-nav.addChild(btn)
-
-// Translate a box
-box.move(100, 50)
-
-// group() — position:relative wrapper for layering
-const g = group(sprite, shadow)
-g.move(200, 100)
-```
-
----
-
-## Events
-
-```js
-// Generic
-el.on("click", fn)
-el.on("mouseover", fn)
-
-// Props syntax
-new Button(1, { onClick: () => alert("hi") })
-
-// Sugar
-button.click(() => {})
-input.onEnter(val => {})
-input.onInput(val => console.log(val))
-```
-
----
-
-## Input Helpers
-
-```js
-const inp = new Input(1)
-inp.get()           // returns current value
-inp.set("hello")    // sets value
-inp.onInput(v => {})
-inp.onEnter(v => {})
+const scene = group(background, player, hud)
+root.addChild(scene)
 ```
 
 ---
@@ -172,272 +242,178 @@ inp.onEnter(v => {})
 ## Animation
 
 ```js
-// Animate any props
-box.animate({ opacity: 0, x: 100, width: 200 }, 300)
-box.animate({ backgroundColor: "blue" }, 500, "ease-in")
+el.animate({ opacity: 0, x: 100 }, 300, 'ease-out')
+el.animate({ backgroundColor: '#f00', width: 200 }, 500)
 
-// Presets
-box.fadeIn()          // opacity 0 → 1
-box.fadeOut()         // opacity 1 → 0
-box.slideLeft()       // slides in from right
-box.slideRight()      // slides in from left
-box.slideUp()         // slides in from below
-box.slideDown()       // slides in from above
-
-// Custom distance & duration
-box.slideLeft(80, 400)
+el.fadeIn(300)
+el.fadeOut(300)
+el.slideLeft(40, 300)    // slides in from the right
+el.slideRight(40, 300)   // slides in from the left
+el.slideUp(40, 300)
+el.slideDown(40, 300)
 ```
 
-Animatable props: `opacity`, `x`, `y`, `scale`, `rotate`, `width`, `height`, `backgroundColor`, `color`
+Animatable keys: `opacity`, `x`, `y`, `scale`, `rotate`, `width`, `height`, `backgroundColor`, `color`.
 
 ---
 
 ## Game System
 
-### Game Loop
+### Loop
+
 ```js
-const game = loop((dt) => {
-    // dt = delta time in ms
-    box.x(box.x() + 1)
+const handle = loop((dt) => {
+  player.x(player.x() + speed * dt / 16)
 })
 
-game.stop()   // stop the loop
+handle.stop()
 ```
 
-### Keyboard Input
+### Keyboard
+
 ```js
-onKey("w", () => moveUp())
-onKey("arrowleft", () => moveLeft())
-onKey(" ", () => jump())           // spacebar
-onKey("w", () => stopUp(), { up: true })  // keyup
+onKey('arrowleft', () => player.x(player.x() - 5))
+onKey('space', () => jump())                // keydown (default)
+onKey('space', () => land(), { up: true })  // keyup
 ```
 
 ### Collision
+
 ```js
 if (collides(player, enemy)) {
-    // AABB bounding box check
+  // AABB — works with BaseElement or HTMLElement
 }
 ```
 
-### Scene System
+### Scenes
+
 ```js
-scene("menu", () => {
-    new Text(1, { text: "Press Start" })
+scene('menu', () => {
+  new Button(null, { text: 'Play', onClick: () => go('game') })
 })
 
-scene("game", () => {
-    // build game UI
-})
+scene('game', () => { /* game setup */ })
 
-go("menu")   // switch to scene
+go('menu')
 ```
 
 ### Camera
-```js
-// camera.x / camera.y move a layer div
-loop(dt => {
-    camera.x += 2
-})
 
-// Attach things to the camera layer
-camera.el.appendChild(mySprite.el)
+```js
+camera.x = 200   // pan right
+camera.y += 5    // pan down
 ```
 
 ---
 
-## Timer Helpers
+## Timers
 
 ```js
-after(1000, () => console.log("1 second later"))
+after(1000, () => console.log('1s later'))
 
-const tick = every(16, () => update())
-tick.stop()   // cancel interval
+const t = every(500, () => tick())
+t.stop()
 ```
 
 ---
 
 ## Storage
 
-```js
-save("score", 100)
-save("player", { name: "Rudra", hp: 100 })
+Thin `localStorage` wrappers with JSON serialization:
 
-const score  = load("score", 0)          // default: 0
-const player = load("player", { name: "" })
+```js
+save('user', { name: 'Rudra', score: 100 })
+
+const user = load('user', { name: 'Guest' })  // second arg is default
 ```
 
 ---
 
-## Prompt Helper
+## Sound
 
 ```js
-const name = ask("Enter your name:")
-const name = ask("Enter your name:", "Player1")  // with default
+sound.load('hit', './hit.ogg')
+sound.load('music', './music.mp3')
+
+sound.play('hit')
+sound.play('music', { loop: true, volume: 0.5 })
+sound.stop('music')
+sound.volume('hit', 0.8)
 ```
 
 ---
 
-## Sound Module
+## Particles
+
+CSS-only, no canvas required:
 
 ```js
-sound.load("hit",   "sounds/hit.ogg")
-sound.load("music", "sounds/bg.mp3")
-
-sound.play("hit")
-sound.play("music", { loop: true, volume: 0.5 })
-sound.stop("music")
-sound.volume("hit", 0.8)
-```
-
----
-
-## Particles Module
-
-```js
-// CSS-based, no canvas required
 particles.emit({
-    x: 200,          // origin x
-    y: 300,          // origin y
-    count: 16,       // number of particles
-    color: "#ffcc00",
-    size: 8,         // px
-    duration: 700,   // ms
-    spread: 80,      // radius in px
+  x: 200, y: 300,
+  count: 16,
+  color: '#f59e0b',
+  size: 8,
+  duration: 600,
+  spread: 80,
 })
 ```
 
 ---
 
-## Physics (Matter.js)
+## Physics (engine2d)
 
-Matter.js is lazy-loaded from CDN when `engine2d.init()` is called.
-
-```js
-import { engine2d } from './csui.js'
-
-await engine2d.init({ gravity: { x: 0, y: 1 } })
-
-// Attach physics to any element
-const box = new Box(1, { w: 50, h: 50, bg: "red" })
-box.physics({ mass: 1, bounce: 0.8, friction: 0.1 })
-
-// Or manually
-engine2d.attach(box, { mass: 2, isStatic: false })
-
-// Add a static ground
-engine2d.addGround(500)  // y position
-```
-
-Shorthand `.physics()` internally calls `engine2d.attach(this, opts)`.
-
----
-
-## Dev Tools
-
-### Debug Mode
-Enables:
-- Error overlay on `window.onerror` and unhandled promise rejections
-- Console info logging
+Lazy-loads Matter.js from CDN:
 
 ```js
-csui.debug(true)
-csui.isDebug   // boolean
-```
+engine2d.init({ gravity: { x: 0, y: 1 } }).then(() => {
+  engine2d.attach(ball, { mass: 1, bounce: 0.8 })
+  engine2d.addGround(window.innerHeight - 20)
+})
 
-### Strict Mode
-```js
-csui.strict(true)
-csui.isStrict
-```
-
-### Element Highlighting
-```js
-box.highlight()          // red outline
-box.highlight("#0f0")    // custom color
-```
-
-### Overlap Detection
-```js
-checkOverlap(boxA, boxB)  // warns in console if overlapping
-```
-
-### Manual Error Screen
-```js
-csui.showError("Something went wrong!")
+// or shorthand on any element:
+ball.physics({ mass: 1, bounce: 0.5, friction: 0.1 })
 ```
 
 ---
 
-## Named Elements
+## Router
+
+URL-based routing. Leaves `scene()`/`go()` untouched.
 
 ```js
-new Box(1, { name: "player" })
-// → sets id="player" and data-name="player"
-// → used in debug output and overlap warnings
+router.define('/', () => showHome())
+router.define('/about', () => showAbout())
+router.define('*', (path) => show404(path))  // fallback
+
+router.go('/about')
+router.go('/user', { id: 1 })  // optional state payload
+router.back()
+router.forward()
+router.current               // → location.pathname
 ```
 
----
-
-## Utility Functions
-
-```js
-remove(element)         // removes from DOM
-clearContainers()       // resets container registry
-getContainer(1)         // returns Box at index 1
-```
-
----
-
-## Label / Text Alias
-
-`Label` and `Text` are the same class — use either:
-
-```js
-new Text(1, { text: "Hello" })
-new Label(1, { text: "Hello" })  // identical
-```
-
----
-
----
-
-## Lifecycle Hooks
-
-```js
-const box = new Box("app")
-  .onMount(() => console.log("mounted"))
-  .onDestroy(() => console.log("cleanup"))
-
-box.destroy()   // fires onDestroy callbacks + removes from DOM
-```
-
----
-
-## URL Router
-
-Separate from the existing `scene()`/`go()` system. Uses `history.pushState`.
-
-```js
-router.define("/",       () => { /* render home */ })
-router.define("/about",  () => { /* render about */ })
-router.define("*",       path => { /* 404 fallback */ })
-
-router.go("/about")      // navigate + render
-router.back()            // history.back()
-router.forward()         // history.forward()
-router.current           // → location.pathname
-```
+Browser back/forward buttons fire handlers automatically via `popstate`.
 
 ---
 
 ## Device APIs
 
 ```js
-const pos = await device.location()        // { lat, lng, accuracy }
-device.vibrate(200)                        // or device.vibrate([100, 50, 100])
-const stop = device.tilt((a, b, g) => {}) // returns cleanup fn
-await device.notify("Title", "Body")
-await device.clipboard.copy("hello")
+// Geolocation
+const { lat, lng, accuracy } = await device.location()
+
+// Vibration
+device.vibrate(200)                // ms, or pattern [200, 100, 200]
+
+// Tilt
+const stop = device.tilt((alpha, beta, gamma) => { /* ... */ })
+stop()
+
+// Notifications
+await device.notify('Title', 'Body text')
+
+// Clipboard
+await device.clipboard.copy('hello')
 const text = await device.clipboard.paste()
 ```
 
@@ -445,317 +421,356 @@ const text = await device.clipboard.paste()
 
 ## UI Components
 
-All components accept standard CSUI style props (`bg`, `c`, `br`, `bs`, `p`, `w`, `h`, etc.)  
-plus named style props for their internal parts.
-
 ### DropdownMenu
 
 ```js
-new DropdownMenu("app", {
-  label: "Options",
-  buttonBg: "#1d4ed8", buttonHoverBg: "#2563eb", buttonColor: "#fff",
-  menuBg: "#1e1e2e", itemColor: "#e0e0e0", itemHoverBg: "#2d2d3e",
-  radius: "8px", minWidth: "180px",
+const menu = new DropdownMenu(root, {
+  label: 'Options',
   items: [
-    { label: "Profile", onClick: () => {} },
+    { label: 'Edit',   onClick: () => edit() },
     { divider: true },
-    { label: "Logout",  onClick: () => {} },
+    { label: 'Delete', onClick: () => del() },
   ],
+  buttonBg: '#3b82f6', menuBg: '#1e1e1e',
+  itemColor: '#eee', itemHoverBg: '#333', radius: '8px',
 })
-.addItem({ label: "Added later", onClick: () => {} })
-.open() .close() .toggle()
-menu.label = "New Label"
+
+menu.open() / menu.close() / menu.toggle()
+menu.addItem({ label: 'New', onClick: fn })
+menu.label = 'Renamed'
 ```
 
 ### Modal
 
 ```js
-const m = new Modal("app", {
-  title: "Confirm", content: "Are you sure?",
-  overlayColor: "rgba(0,0,0,0.65)", dialogBg: "#1a1a2e",
-  titleColor: "#fff", contentColor: "rgba(255,255,255,0.8)",
-  radius: "12px", maxWidth: "500px",
-  onClose: () => {}, closeOnOverlay: true, showClose: true,
+const m = new Modal(null, {
+  title: 'Confirm', content: 'Are you sure?',
+  onClose: () => {},
+  overlayColor: 'rgba(0,0,0,0.7)',
+  dialogBg: '#1a1a2e', radius: '16px', maxWidth: '400px',
 })
-m.open()
-m.close()
-m.title = "New Title"
-m.content = "New content"      // string, BaseElement, or HTMLElement
+
+m.open() / m.close()
+m.title   = 'New Title'
+m.content = 'Updated text'  // string, BaseElement, or HTMLElement
 ```
 
 ### toast
 
 ```js
-toast("Saved!", { type: "success", duration: 2500 })
-toast("Error!", { type: "error",   position: "tl"  })   // tl tr bl br
-toast("Custom", { bg: "#7c3aed",   color: "#fff", radius: "12px" })
+toast('Saved!',         { type: 'success' })
+toast('Error occurred', { type: 'error', duration: 4000 })
+toast('FYI',            { type: 'info',  position: 'tl' })  // tl tr bl br
+toast('Warning',        { type: 'warning', bg: '#f59e0b', color: '#000' })
 ```
 
 ### Tabs
 
 ```js
-const tabs = new Tabs("app", {
-  activeColor: "#fff", inactiveColor: "rgba(255,255,255,0.45)",
-  indicatorColor: "#3b82f6", barBg: "transparent",
+const tabs = new Tabs(root, {
   tabs: [
-    { label: "Home",    content: homeBox },
-    { label: "Profile", content: profileBox },
+    { label: 'Home',     content: homeBox },
+    { label: 'Settings', content: 'Plain text works too' },
   ],
+  activeColor: '#fff', inactiveColor: 'rgba(255,255,255,0.4)',
+  indicatorColor: '#3b82f6',
 })
-tabs.show(1)          // switch to index 1
-tabs.addTab({ label: "New", content: box })
-tabs.active           // → current index
+
+tabs.show(1)
+tabs.addTab({ label: 'New', content: newBox })
+tabs.active  // → current index
 ```
 
 ### Slider
 
 ```js
-const s = new Slider("app", {
+const s = new Slider(root, {
   min: 0, max: 100, value: 50, step: 1,
-  trackColor: "rgba(255,255,255,0.12)", fillColor: "#3b82f6",
-  thumbColor: "#fff", height: 6, thumbSize: 18,
+  fillColor: '#3b82f6', thumbColor: '#fff',
+  trackColor: 'rgba(255,255,255,0.1)',
 })
-s.onChange(v => console.log(v))
-s.get()          // current value
-s.set(75)        // set value
-s.value          // getter/setter
+
+s.onChange(val => console.log(val))
+s.value = 75
+s.set(25) / s.get()
 ```
 
 ### ProgressBar
 
 ```js
-const bar = new ProgressBar("app", {
-  value: 0, fillColor: "#3b82f6",
-  trackColor: "rgba(255,255,255,0.1)",
-  height: 8, radius: 999, animated: true, striped: false,
+const bar = new ProgressBar(root, {
+  value: 0, fillColor: '#22c55e',
+  height: 8, animated: true, striped: false,
 })
-bar.set(75)      // animates to 75%
-bar.get()        // → 75
+
+bar.set(60)  // 0–100
+bar.value = 100
 ```
 
 ### Toggle
 
 ```js
-const t = new Toggle("app", {
+const t = new Toggle(root, {
   checked: false,
-  trackColor: "rgba(255,255,255,0.15)", activeColor: "#3b82f6",
-  thumbColor: "#fff", size: 1,       // size multiplier
-  onChange: on => console.log(on),
+  activeColor: '#3b82f6', thumbColor: '#fff', size: 1,
 })
-t.onChange(on => {})
-t.set(true)
-t.get()          // → boolean
-t.checked        // getter/setter
+
+t.onChange(val => console.log(val))
+t.set(true) / t.get()
+t.checked  // → boolean
 ```
 
 ### Accordion
 
 ```js
-const acc = new Accordion("app", {
-  headerBg: "#1e1e2e", headerHoverBg: "#2d2d3e",
-  bodyBg: "#16162a", radius: "8px", multi: false,
+const acc = new Accordion(root, {
+  multi: false,
   items: [
-    { title: "Section 1", content: "Text or BaseElement", open: true },
-    { title: "Section 2", content: anotherBox },
+    { title: 'Section 1', content: 'Body text', open: true },
+    { title: 'Section 2', content: someElement },
   ],
+  headerBg: '#1e1e2e', bodyBg: '#16162a', radius: '8px',
 })
-acc.addItem({ title: "Dynamic", content: "Added later" })
+
+acc.addItem({ title: 'New', content: 'Text' })
 ```
 
 ### Drawer
 
 ```js
-const drawer = new Drawer("app", {
-  side: "left",          // left | right | top | bottom
-  size: "280px",
-  bg: "#1a1a2e", overlayColor: "rgba(0,0,0,0.6)",
-  content: myBox,        // BaseElement or HTMLElement
-  onClose: () => {},     closeOnOverlay: true,
+const drawer = new Drawer(null, {
+  side: 'left',   // left right top bottom
+  size: '300px',
+  bg: '#1a1a2e', content: myPanel,
+  onClose: () => {},
 })
-drawer.open()
-drawer.close()
-drawer.setContent(newBox)
+
+drawer.open() / drawer.close()
+drawer.setContent(newPanel)
 ```
 
 ### Chip
 
 ```js
-new Chip("app", {
-  text: "TypeScript",
-  bg: "rgba(59,130,246,0.2)", color: "#93c5fd",
-  border: "1px solid rgba(59,130,246,0.3)",
-  radius: "999px", fontSize: "12px",
-  removable: true, onRemove: chip => chip.destroy(),
+new Chip(root, {
+  text: 'TypeScript',
+  bg: 'rgba(59,130,246,0.2)', color: '#93c5fd',
+  onRemove: (chip) => chip.destroy(),
 })
-chip.text = "New Label"
 ```
 
 ### Card
 
 ```js
-new Card("app", {
-  title: "Card Title", content: "Body text or BaseElement",
-  footer: "Footer content",
-  bg: "#1a1a2e", radius: "12px", padding: "20px",
-  titleColor: "#fff", contentColor: "rgba(255,255,255,0.75)",
-  shadow: "0 4px 24px rgba(0,0,0,0.3)",
+new Card(root, {
+  title: 'Card Title',
+  content: 'Body text or a BaseElement',
+  footer: 'Footer text',
+  bg: '#1a1a2e', radius: '12px',
 })
-card.title = "New Title"
-card.setContent(newBox)
-card.body          // → the body div element
 ```
 
 ---
 
 ## Prototype Helpers
 
-### .tooltip(text, opts)
+Available on every element.
+
+### .tooltip()
 
 ```js
-box.tooltip("Hello!", {
-  pos: "top",            // top | bottom | left | right
-  bg: "rgba(0,0,0,0.85)", color: "#fff",
-  fontSize: "12px", radius: "6px",
-  delay: 200, padding: "6px 10px",
+el.tooltip('Helpful hint', {
+  pos: 'top',   // top bottom left right
+  delay: 300,
+  bg: 'rgba(0,0,0,0.85)', color: '#fff',
 })
 ```
 
-### .badge(count, opts)
+### .badge()
 
 ```js
-btn.badge(5, { bg: "#ef4444", color: "#fff", size: 18, fontSize: "11px" })
-btn.badge(0)   // removes badge
+el.badge(5)                      // red dot with count
+el.badge(99, { bg: '#22c55e' })
+el.badge(0)                      // removes badge
 ```
 
-### .contextMenu(items, opts)
+### .contextMenu()
 
 ```js
-box.contextMenu([
-  { label: "Copy",   onClick: () => {} },
+el.contextMenu([
+  { label: 'Copy',   onClick: () => copy() },
   { divider: true },
-  { label: "Delete", onClick: () => {} },
-], { bg: "#1e1e2e", itemHoverBg: "#2d2d3e", radius: "8px" })
+  { label: 'Delete', onClick: () => del() },
+])
+```
+
+### .glass()
+
+```js
+el.glass()                        // semi-transparent bg
+el.glass({ pro: true })           // + backdrop-filter blur
+el.glass({ pro: true, blur: 16, opacity: 0.15, saturation: 2 })
 ```
 
 ---
 
-## Glassmorphism
+## SVG
 
 ```js
-// Lazy — semi-transparent background only
-box.glass({ opacity: 0.15, borderColor: "rgba(255,255,255,0.2)" })
+const svg = new Svg(root, { w: 400, h: 300, bg: '#0f0f1a' })
 
-// Professional — backdrop-filter blur (real glassmorphism)
-box.glass({
-  pro: true,
-  blur: 12,                              // px
-  opacity: 0.12,                         // background alpha
-  saturation: 1.8,                       // backdrop saturation multiplier
-  borderColor: "rgba(255,255,255,0.18)",
-  shadowColor: "rgba(0,0,0,0.25)",
-  border: true, shadow: true,
-  bg: null,                              // override bg entirely if needed
+// Shapes (all accept standard SVG attributes)
+new SvgRect(svg,     { x: 10, y: 10, width: 80, height: 50, fill: '#3b82f6', rx: 8 })
+new SvgCircle(svg,   { cx: 200, cy: 150, r: 40, fill: '#22c55e' })
+new SvgEllipse(svg,  { cx: 100, cy: 100, rx: 60, ry: 30, fill: '#a855f7' })
+new SvgLine(svg,     { x1: 0, y1: 0, x2: 400, y2: 300, stroke: '#fff', strokeWidth: 2 })
+new SvgPath(svg,     { d: 'M10 10 L200 100 Z', stroke: '#f59e0b', fill: 'none' })
+new SvgPolygon(svg,  { points: '0,0 100,0 50,80', fill: '#a855f7' })
+new SvgPolyline(svg, { points: '0,0 50,50 100,0', stroke: '#fff', fill: 'none' })
+new SvgText(svg,     { x: 50, y: 80, text: 'Hello SVG', fill: '#fff', fontSize: 20 })
+
+// Update any shape live
+const rect = new SvgRect(svg, { x: 10, y: 10, width: 80, height: 50, fill: '#3b82f6' })
+rect.set({ fill: '#ef4444', rx: 16 })
+rect.remove()
+
+// Groups
+const g = new SvgGroup(svg, { transform: 'translate(50, 50)' })
+new SvgCircle(g, { cx: 0, cy: 0, r: 20, fill: '#fff' })
+
+svg.clear()   // remove all shapes
+svg.render()  // no-op in browser (live DOM) — exists for Android API compat
+```
+
+---
+
+## Color Palette
+
+Generates a 10-shade palette from any color, printed to the console:
+
+```js
+const colors = palette('#3b82f6')
+// → { 50: '#eff6ff', 100: '...', ..., 900: '#1e3a5f' }
+
+palette('#3b82f6', {
+  name: 'brand',
+  shades: [100, 300, 500, 700, 900],
+  display: true,   // log to console (default: true)
 })
 ```
 
-> Note: `pro: true` requires the element to be over a visible background.  
-> Wrap in a div with `position: relative` if blur doesn't appear.
-
----
-
-## Color Palette Generator
-
-Generates a Figma-style 10-shade palette. Logs swatches, CSS vars, and JS object to console.
-
-```js
-import { palette } from './csui.js'
-
-palette("#3b82f6")
-palette("#3b82f6", { name: "brand" })
-palette("hsl(217,91%,60%)", { name: "primary", shades: [100,300,500,700,900] })
-
-const result = palette("#059669", { name: "green", display: true })
-// result → { 50: "#f0fdf4", 100: "#dcfce7", ..., 900: "#14532d" }
-// Logs swatches + CSS vars (:root { --green-50: ... }) + JS object
-```
+CSS variables and a JS object are printed automatically — just copy from the console.
 
 ---
 
 ## Plugin System
 
-Register custom components from `csui.js` or any user file.
+Extend csui with reusable modules:
 
 ```js
-// myPlugin.js
-import { csui, BaseElement } from './csui.js'
-
 const SpinnerPlugin = {
   name: 'spinner',
-  install({ BaseElement, register, addProto }) {
+  install({ BaseElement, register }) {
     class Spinner extends BaseElement {
-      constructor(containerRef = null, props = {}) {
+      constructor(ref, props = {}) {
         const { color = '#3b82f6', size = 32, ...rest } = props
-        super(containerRef)
+        super(ref)
         this.el = document.createElement('div')
-        this.el.style.cssText = `width:${size}px;height:${size}px;border-radius:50%;
-          border:3px solid rgba(255,255,255,0.1);border-top-color:${color};
-          animation:spin 0.75s linear infinite`
+        this.el.style.cssText = `
+          width:${size}px; height:${size}px; border-radius:50%;
+          border:3px solid #333; border-top-color:${color};
+          animation:_spin 0.7s linear infinite
+        `
+        if (!document.getElementById('_spinKF')) {
+          const s = document.createElement('style')
+          s.id = '_spinKF'
+          s.textContent = '@keyframes _spin{to{transform:rotate(360deg)}}'
+          document.head.appendChild(s)
+        }
         this._attachToContainer()
         if (Object.keys(rest).length) this.props = rest
       }
     }
-    register('Spinner', Spinner)                     // → ctrlscript.Spinner
-    addProto(BaseElement, 'spin', function() {        // → any el.spin()
-      this.el.style.animation = 'spin 0.75s linear infinite'
-      return this
-    })
+    register('Spinner', Spinner)
   }
 }
 
 csui.use(SpinnerPlugin)
-// or: use(SpinnerPlugin)   (named import)
-```
 
-```js
-// main.js
-import './myPlugin.js'
-import { ctrlscript } from './csui.js'
 const { Spinner } = ctrlscript
-new Spinner("app", { color: "#f59e0b", size: 40 })
+new Spinner(root, { color: '#f59e0b', size: 48 })
 ```
 
-`install` receives:
-| Arg | Purpose |
-|---|---|
+**`install` receives:**
+
+| Key | Description |
+|-----|-------------|
 | `BaseElement` | Base class to extend |
 | `Box` | Box class |
 | `register(name, Cls)` | Adds `Cls` to `ctrlscript[name]` |
-| `addProto(Target, name, fn)` | Adds method to any existing class prototype |
-| `containers`, `containersByName` | Internal registries |
+| `addProto(Target, name, fn)` | Adds method to any class prototype |
+| `containers` | Internal container registry (array) |
+| `containersByName` | Named container registry (object) |
 
 ---
 
-## Quick Example
+## Dev Tools
 
 ```js
-import { App, Box, Text, Button, loop, onKey, save, load, csui } from './csui.js'
+csui.debug(true)                // red overlay on uncaught errors
+csui.showError('Custom error')  // trigger overlay manually
+csui.isDebug                    // → boolean
+```
 
-csui.debug(true)
+---
 
-const appScreen = new Box("appScreen", { bg: "#1a1a2e", fullPage: true })
+## Android Compat Layer
 
-const score = load("score", 0)
-const scoreText = new Text("appScreen", { text: `Score: ${score}`, c: "#fff", fs: 24 })
+These APIs are stubs in the browser — they let the same `app.js` run unmodified on both targets.
 
-const player = new Box("appScreen", { w: 50, h: 50, bg: "#e94560", name: "player" })
-player.x(100).y(300)
+| API | Browser behavior |
+|-----|-----------------|
+| `dialog.alert / confirm / prompt` | native browser dialogs |
+| `app.onPause / onResume / onBack` | window blur / focus / popstate |
+| `share({ text, title, url })` | Web Share API or prompt fallback |
+| `openUrl(url)` | `window.open` |
+| `openMaps({ lat, lng })` | opens Google Maps |
+| `perm.request('camera')` | Permissions API |
+| `save / load` | `localStorage` |
+| `onTouch(el, fn)` | mousedown + touchstart |
+| `onSwipe(el, fn)` | touch direction detection |
+| `onPinch(el, fn)` | pinch scale detection |
+| `SafeArea` | Box with `env(safe-area-inset-*)` padding |
+| `ScrollBox` | Box with `overflow: auto` |
+| `Sound` | wraps browser `Audio` |
+| `cancel(id)` | `clearTimeout` + `clearInterval` |
+| `clearAll()` | `localStorage.clear()` |
+| `db.run / query / get` | warns — Android SQLite only |
+| `files.read / write / etc` | warns — Android only |
+| `keyboard / statusBar / navigationBar` | warns — Android only |
 
-let vel = 0
-onKey("arrowup", () => vel = -5)
-onKey("arrowdown", () => vel = 5)
+---
 
-loop(() => {
-    player.y(player.y() + vel)
-    save("score", score)
-})
+## Utility Functions
+
+```js
+remove(el)              // removes element from DOM
+clearContainers()       // reset all registries + ID counter
+getContainer('nav')     // get by name or index
+listContainers()        // → { named: {...}, indexed: [...] }
+checkOverlap(a, b)      // AABB check + console warning if overlapping
+collides(a, b)          // AABB check, no warning
+ask('Your name?')       // window.prompt wrapper
+```
+
+---
+
+## Namespace
+
+```js
+import { ctrlscript } from './csui.js'   // full namespace object
+import { CS }         from './csui.js'   // short alias
+
+// Tree-shakeable named imports:
+import { Box, loop, save, router, device, toast } from './csui.js'
 ```
