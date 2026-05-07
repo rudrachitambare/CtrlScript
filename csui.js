@@ -1580,7 +1580,7 @@ export function collides(a, b) {
 // scene manager
 const _scenes = {};
 export function scene(name, fn) { _scenes[name] = fn; }
-export function go(name) {
+export async function go(name) {
     if (!_scenes[name]) { console.error(`[csui] scene "${name}" not found`); return; }
     const root = document.getElementById('app') || document.body;
     const old = root.querySelector('[data-csui-scene]');
@@ -1594,7 +1594,13 @@ export function go(name) {
     BaseElement.call(fakeBox, null);
     fakeBox.el = wrap;
     containers.push(fakeBox);
-    _scenes[name]();
+    // support both plain functions and async loaders: () => import('./scene.js')
+    let result = _scenes[name]();
+    if (result && typeof result.then === 'function') {
+        result = await result;
+        // if it resolved to a module, call its default export
+        if (result && typeof result.default === 'function') result.default();
+    }
 }
 
 // camera
